@@ -1,9 +1,10 @@
 
 /*
  *
- * playerframe.cpp
+ * levelplayerframe.cpp
  *
  * 18th July 2009: Created playerframe.cpp from parts of player.cpp
+ * 24th June 2010: Renamed playerframe.cpp to levelplayerframe.cpp
  *
  * Part of the OpenJazz project
  *
@@ -20,13 +21,13 @@
  */
 
 /*
- * Provides the once-per-frame functions of players.
+ * Provides the once-per-frame functions of players in levels.
  *
  */
 
 
 #include "bird.h"
-#include "player.h"
+#include "levelplayer.h"
 
 #include "bonus/bonus.h"
 #include "game/gamemode.h"
@@ -40,7 +41,7 @@
 #include "util.h"
 
 
-void Player::control (unsigned int ticks, int msps) {
+void LevelPlayer::control (unsigned int ticks, int msps) {
 
 	int speed;
 	bool platform;
@@ -66,7 +67,7 @@ void Player::control (unsigned int ticks, int msps) {
 
 	}
 
-	if (pcontrols[C_RIGHT]) {
+	if (player->pcontrols[C_RIGHT]) {
 
 		// Walk/run right
 
@@ -76,7 +77,7 @@ void Player::control (unsigned int ticks, int msps) {
 
 		facing = true;
 
-	} else if (pcontrols[C_LEFT]) {
+	} else if (player->pcontrols[C_LEFT]) {
 
 		// Walk/run left
 
@@ -121,7 +122,7 @@ void Player::control (unsigned int ticks, int msps) {
 
 	if (floating) {
 
-		if (pcontrols[C_UP]) {
+		if (player->pcontrols[C_UP]) {
 
 			// Fly upwards
 
@@ -129,7 +130,7 @@ void Player::control (unsigned int ticks, int msps) {
 			else if (dy > -PXS_WALK) dy -= PXA_WALK * msps;
 			else if (dy > -PXS_RUN) dy -= PXA_RUN * msps;
 
-		} else if (pcontrols[C_DOWN]) {
+		} else if (player->pcontrols[C_DOWN]) {
 
 			// Fly downwards
 
@@ -169,7 +170,7 @@ void Player::control (unsigned int ticks, int msps) {
 
 	} else if (y + PYO_MID > level->getWaterLevel()) {
 
-		if (pcontrols[C_SWIM]) {
+		if (player->pcontrols[C_SWIM]) {
 
 			// Swim upwards
 
@@ -190,7 +191,7 @@ void Player::control (unsigned int ticks, int msps) {
 
 			}
 
-		} else if (pcontrols[C_DOWN]) {
+		} else if (player->pcontrols[C_DOWN]) {
 
 			// Swim downwards
 
@@ -212,7 +213,7 @@ void Player::control (unsigned int ticks, int msps) {
 
 	} else {
 
-		if (platform && pcontrols[C_JUMP] &&
+		if (platform && player->pcontrols[C_JUMP] &&
 			!level->checkMaskUp(x + PXO_MID, y - F36)) {
 
 			// Jump
@@ -230,7 +231,7 @@ void Player::control (unsigned int ticks, int msps) {
 		}
 
 		// Stop jumping
-		if (!pcontrols[C_JUMP] && (event != 1) && (event != 2))
+		if (!player->pcontrols[C_JUMP] && (event != 1) && (event != 2))
 			jumpY = TTOF(LH);
 
 		if (y >= jumpY) {
@@ -267,15 +268,15 @@ void Player::control (unsigned int ticks, int msps) {
 		if (platform && !lookTime) {
 
 			// If requested, look up or down
-			if (pcontrols[C_UP]) lookTime = -ticks;
-			else if (pcontrols[C_DOWN]) lookTime = ticks;
+			if (player->pcontrols[C_UP]) lookTime = -ticks;
+			else if (player->pcontrols[C_DOWN]) lookTime = ticks;
 
 		}
 
 		// Stop looking if there is no platform or the control has been released
 		if (!platform ||
-			(!pcontrols[C_UP] && (lookTime < 0)) ||
-			(!pcontrols[C_DOWN] && (lookTime > 0))) lookTime = 0;
+			(!player->pcontrols[C_UP] && (lookTime < 0)) ||
+			(!player->pcontrols[C_DOWN] && (lookTime > 0))) lookTime = 0;
 
 	}
 
@@ -301,26 +302,26 @@ void Player::control (unsigned int ticks, int msps) {
 
 
 	// Handle firing
-	if (pcontrols[C_FIRE]) {
+	if (player->pcontrols[C_FIRE]) {
 
-		if ((ticks > fireTime) && (level->getBullet(ammoType + 1)[B_SPRITE] != 0)) {
+		if ((ticks > fireTime) && (level->getBullet(player->ammoType + 1)[B_SPRITE] != 0)) {
 
 			// Make sure bullet position is taken from correct animation
 			if (platform) animType = facing? PA_RSHOOT: PA_LSHOOT;
 
 			// Create new bullet
-			level->bullets = new Bullet(this, false, ticks);
+			level->bullets = new Bullet(player, false, ticks);
 
 			// Set when the next bullet can be fired
-			if (fireSpeed) fireTime = ticks + (1000 / fireSpeed);
+			if (player->fireSpeed) fireTime = ticks + (1000 / player->fireSpeed);
 			else fireTime = 0x7FFFFFFF;
 
 			// Remove the bullet from the arsenal
-			if (ammoType != -1) ammo[ammoType]--;
+			if (player->ammoType != -1) player->ammo[player->ammoType]--;
 
 			/* If the current ammo type has been exhausted or TNT has been used,
 			use the previous non-exhausted ammo type */
-			while (((ammoType > -1) && !ammo[ammoType]) || (ammoType == 3)) ammoType--;
+			while (((player->ammoType > -1) && !player->ammo[player->ammoType]) || (player->ammoType == 3)) player->ammoType--;
 
 		}
 
@@ -328,27 +329,27 @@ void Player::control (unsigned int ticks, int msps) {
 
 
 	// Check for a change in ammo
-	if (pcontrols[C_CHANGE]) {
+	if (player->pcontrols[C_CHANGE]) {
 
-		if (this == localPlayer) controls.release(C_CHANGE);
+		if (player == localPlayer) controls.release(C_CHANGE);
 
-		ammoType = ((ammoType + 2) % 5) - 1;
+		player->ammoType = ((player->ammoType + 2) % 5) - 1;
 
 		// If there is no ammo of this type, go to the next type that has ammo
-		while ((ammoType > -1) && !ammo[ammoType])
-			ammoType = ((ammoType + 2) % 5) - 1;
+		while ((player->ammoType > -1) && !player->ammo[player->ammoType])
+			player->ammoType = ((player->ammoType + 2) % 5) - 1;
 
 	}
 
 
 	// Deal with the bird
 
-	if (bird) {
+	if (player->bird) {
 
-		if (bird->step(ticks, msps)) {
+		if (player->bird->step(ticks, msps)) {
 
-			delete bird;
-			bird = NULL;
+			delete player->bird;
+			player->bird = NULL;
 
 		}
 
@@ -400,7 +401,7 @@ void Player::control (unsigned int ticks, int msps) {
 
 		}
 
-		else if (pcontrols[C_FIRE])
+		else if (player->pcontrols[C_FIRE])
 			animType = facing? PA_RSHOOT: PA_LSHOOT;
 
 		else
@@ -414,7 +415,7 @@ void Player::control (unsigned int ticks, int msps) {
 }
 
 
-void Player::move (unsigned int ticks, int msps) {
+void LevelPlayer::move (unsigned int ticks, int msps) {
 
 	fixed pdx, pdy;
 	int count;
@@ -621,81 +622,7 @@ void Player::move (unsigned int ticks, int msps) {
 }
 
 
-void Player::bonusStep (unsigned int ticks, int msps, Bonus* bonus) {
-
-	fixed cdx, cdy;
-
-	// Bonus stages use polar coordinates for movement (but not position)
-	// Treat dx as change in radius
-
-	if (pcontrols[C_UP]) {
-
-		// Walk/run forwards
-
-		if (dx < 0) dx += PRA_REVERSE * msps;
-		else if (dx < PRS_RUN) dx += PRA_RUN * msps;
-
-		animType = PA_WALK;
-
-	} else if (pcontrols[C_DOWN]) {
-
-		// Walk/run back
-
-		if (dx > 0) dx -= PRA_REVERSE * msps;
-		else if (dx > PRS_REVERSE) dx -= PRA_RUN * msps;
-
-		animType = PA_WALK;
-
-	} else {
-
-		// Slow down
-
-		if (dx > 0) {
-
-			if (dx < PRA_STOP * msps) dx = 0;
-			else dx -= PRA_STOP * msps;
-
-		}
-
-		if (dx < 0) {
-
-			if (dx > -PRA_STOP * msps) dx = 0;
-			else dx += PRA_STOP * msps;
-
-		}
-
-		animType = PA_OTHER;
-
-	}
-
-	if (pcontrols[C_LEFT]) {
-
-		direction -= msps >> 2;
-		animType = PA_LEFT;
-
-	}
-
-	if (pcontrols[C_RIGHT]) {
-
-		direction += msps >> 2;
-		animType = PA_RIGHT;
-
-	}
-
-
-	// Apply trajectory
-	cdx = (MUL(fSin(direction), dx) * msps) >> 10;
-	cdy = (MUL(-fCos(direction), dx) * msps) >> 10;
-
-	if (!bonus->checkMask(x + cdx, y)) x += cdx;
-	if (!bonus->checkMask(x, y + cdy)) y += cdy;
-
-	return;
-
-}
-
-
-void Player::view (unsigned int ticks, int mspf) {
+void LevelPlayer::view (unsigned int ticks, int mspf) {
 
 	int oldViewX, oldViewY, speed;
 
@@ -744,7 +671,7 @@ void Player::view (unsigned int ticks, int mspf) {
 
 }
 
-void Player::draw (unsigned int ticks, int change) {
+void LevelPlayer::draw (unsigned int ticks, int change) {
 
 	Anim *an;
 	int frame;
@@ -776,8 +703,8 @@ void Player::draw (unsigned int ticks, int change) {
 
 	else {
 
-		an->setPalette(palette, 23, 41);
-		an->setPalette(palette, 88, 8);
+		an->setPalette(player->palette, 23, 41);
+		an->setPalette(player->palette, 88, 8);
 
 	}
 
@@ -863,13 +790,13 @@ void Player::draw (unsigned int ticks, int change) {
 
 
 	// Show the bird
-	if (bird) bird->draw(ticks, change);
+	if (player->bird) player->bird->draw(ticks, change);
 
 
 	// Show the player's name
 	if (gameMode)
-		panelBigFont->showString(name,
-			FTOI(drawX + PXO_MID - viewX) - (panelBigFont->getStringWidth(name) >> 1),
+		panelBigFont->showString(player->name,
+			FTOI(drawX + PXO_MID - viewX) - (panelBigFont->getStringWidth(player->name) >> 1),
 			FTOI(drawY - F32 - F16 - viewY));
 
 	return;
