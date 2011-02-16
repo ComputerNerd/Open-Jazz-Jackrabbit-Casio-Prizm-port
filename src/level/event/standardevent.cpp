@@ -1,7 +1,7 @@
 
 /**
  *
- * @file eventframe.cpp
+ * @file standardevent.cpp
  *
  * Part of the OpenJazz project
  *
@@ -9,6 +9,8 @@
  * 19th July 2009: Created eventframe.cpp from parts of events.cpp
  * 2nd March 2010: Created guardians.cpp from parts of event.cpp and eventframe.cpp
  * 2nd March 2010: Created bridge.cpp from parts of event.cpp and eventframe.cpp
+ * 5th February 2011: Moved parts of eventframe.cpp to event.cpp
+ * 5th February 2011: Renamed eventframe.cpp to standardevent.cpp
  *
  * @section Licence
  * Copyright (c) 2005-2010 Alister Thomson
@@ -30,7 +32,7 @@
 #include "../level.h"
 #include "event.h"
 
-#include "io/gfx/video.h"
+#include "io/gfx/sprite.h"
 #include "io/sound.h"
 #include "player/levelplayer.h"
 #include "util.h"
@@ -38,61 +40,88 @@
 #include <stdlib.h>
 
 
-signed char* Event::prepareStep (unsigned int ticks, int msps) {
+/**
+ * Create standard event.
+ *
+ * @param gX X-coordinate
+ * @param gY Y-coordinate
+ */
+StandardEvent::StandardEvent (unsigned char gX, unsigned char gY) : Event(gX, gY) {
 
-	signed char* set;
+	node = 0;
+	onlyLAnimOffset = false;
+	onlyRAnimOffset = false;
 
-	// Process the next event
-	if (next) next = next->step(ticks, msps);
+	switch (set->movement) {
 
+		case 2: // Walk from side to side
+		case 4: // Walk from side to side and down hills
 
-	// Get the event properties
-	set = level->getEvent(gridX, gridY);
+			animType = E_LEFTANIM;
+			onlyRAnimOffset = true;
 
-	// If the event has been removed from the grid, destroy it
-	if (!set) return NULL;
+			break;
 
-	// If the event and its origin are off-screen, the event is not in the
-	// process of self-destruction, remove it
-	if ((animType != E_LFINISHANIM) && (animType != E_RFINISHANIM) &&
-		((x < viewX - F192) || (x > viewX + ITOF(viewW) + F192) ||
-		(y < viewY - F160) || (y > viewY + ITOF(viewH) + F160)) &&
-		((gridX < FTOT(viewX) - 1) ||
-		(gridX > ITOT(FTOI(viewX) + viewW) + 1) ||
-		(gridY < FTOT(viewY) - 1) ||
-		(gridY > ITOT(FTOI(viewY) + viewH) + 1))) return NULL;
+		case 6: // Use the path from the level file
+		case 7: // Flying snake behavior
 
+			animType = E_LEFTANIM;
+			noAnimOffset = true;
 
-	// Find frame
-	if (animType && (set[animType] >= 0)) {
+			break;
 
-		if ((animType != E_LEFTANIM) && (animType != E_RIGHTANIM))
-			frame = (ticks + T_FINISH - level->getEventTime(gridX, gridY)) / 40;
-		else if (set[E_ANIMSP])
-			frame = ticks / (set[E_ANIMSP] * 40);
-		else
-			frame = ticks / 20;
+		case 21: // Destructible block
+		case 25: // Float up / Belt
+		case 37: // Sucker tubes
+		case 38: // Sucker tubes
+		case 40: // Monochrome
+		case 57: // Bubbles
+
+			animType = E_NOANIM;
+
+			break;
+
+		case 26: // Flip animation
+
+			animType = E_RIGHTANIM;
+			onlyLAnimOffset = true;
+
+			break;
+
+		default:
+
+			break;
 
 	}
 
-	return set;
+	return;
 
 }
 
 
-Event* Event::step (unsigned int ticks, int msps) {
+/**
+ * Move standard event.
+ *
+ * @param ticks Time
+ * @param msps Ticks per step
+ */
+void StandardEvent::move (unsigned int ticks, int msps) {
 
 	LevelPlayer* levelPlayer;
 	fixed width, height;
-	signed char* set;
 	int count;
-	int offset;
+	int length;
 	fixed angle;
 
 
-	set = prepareStep(ticks, msps);
+	if ((animType & ~1) == E_LSHOOTANIM) {
 
-	if (!set) return remove();
+		dx = 0;
+		dy = 0;
+
+		return;
+
+	}
 
 
 	levelPlayer = localPlayer->getLevelPlayer();
@@ -101,9 +130,9 @@ Event* Event::step (unsigned int ticks, int msps) {
 	width = getWidth();
 	height = getHeight();
 
-	// Handle behaviour
+	// Handle movement
 
-	switch (set[E_BEHAVIOUR]) {
+	switch (set->movement) {
 
 		case 1:
 
@@ -160,16 +189,18 @@ Event* Event::step (unsigned int ticks, int msps) {
 
 		case 6:
 
-			count = level->path[set[E_MULTIPURPOSE]].node;
+			node = (node + (msps << 5)) % ITOF(level->path[set->multiA].length);
 
 			// Use the path from the level file
-			dx = TTOF(gridX) + ITOF(level->path[set[E_MULTIPURPOSE]].x[count]) - x;
-			dy = TTOF(gridY) + ITOF(level->path[set[E_MULTIPURPOSE]].y[count]) - y;
+			dx = TTOF(gridX) + ITOF(level->path[set->multiA].x[FTOI(node)]) - x;
+			dy = TTOF(gridY) + ITOF(level->path[set->multiA].y[FTOI(node)]) - y;
 
-			dx = ((dx << 10) / msps) * set[E_MOVEMENTSP];
-			dy = ((dy << 10) / msps) * set[E_MOVEMENTSP];
+			x += dx;
+			y += dy;
+			dx = (dx << 10) / msps;
+			dy = (dy << 10) / msps;
 
-			break;
+			return;
 
 		case 7:
 
@@ -238,8 +269,8 @@ Event* Event::step (unsigned int ticks, int msps) {
 		case 16:
 
 			// Move across level to the left or right
-			if (set[E_MAGNITUDE] == 0) dx = -ES_SLOW;
-			else dx = set[E_MAGNITUDE] * ES_SLOW;
+			if (set->magnitude == 0) dx = -ES_SLOW;
+			else dx = set->magnitude * ES_SLOW;
 
 			break;
 
@@ -270,8 +301,8 @@ Event* Event::step (unsigned int ticks, int msps) {
 		case 21:
 
 			// Destructible block
-			if (level->getEventHits(gridX, gridY) >= set[E_HITSTOKILL])
-				level->setTile(gridX, gridY, set[E_MULTIPURPOSE]);
+			if (level->getEventHits(gridX, gridY) >= set->strength)
+				level->setTile(gridX, gridY, set->multiA);
 
 			break;
 
@@ -309,29 +340,35 @@ Event* Event::step (unsigned int ticks, int msps) {
 
 			// Rotate
 
-			offset = set[E_BRIDGELENGTH] * set[E_CHAINLENGTH];
-			angle = set[E_MAGNITUDE] * ticks / 13;
+			length = set->pieceSize * set->pieces;
+			angle = set->magnitude * ticks / 13;
 
-			dx = TTOF(gridX) + (fSin(angle) * offset) - x;
-			dy = TTOF(gridY) + ((fCos(angle) + F1) * offset) - y;
-			dx = ((dx << 10) / msps) * set[E_MOVEMENTSP];
-			dy = ((dy << 10) / msps) * set[E_MOVEMENTSP];
+			dx = TTOF(gridX) + (fSin(angle) * length) - x;
+			dy = TTOF(gridY) + ((fCos(angle) + F1) * length) - y;
 
-			break;
+			x += dx;
+			y += dy;
+			dx = (dx << 10) / msps;
+			dy = (dy << 10) / msps;
+
+			return;
 
 		case 30:
 
 			// Swing
 
-			offset = set[E_BRIDGELENGTH] * set[E_CHAINLENGTH];
-			angle = (set[E_CHAINANGLE] << 2) + (set[E_MAGNITUDE] * ticks / 13);
+			length = set->pieceSize * set->pieces;
+			angle = (set->angle << 2) + (set->magnitude * ticks / 13);
 
-			dx = TTOF(gridX) + (fSin(angle) * offset) - x;
-			dy = TTOF(gridY) + ((abs(fCos(angle)) + F1) * offset) - y;
-			dx = ((dx << 10) / msps) * set[E_MOVEMENTSP];
-			dy = ((dy << 10) / msps) * set[E_MOVEMENTSP];
+			dx = TTOF(gridX) + (fSin(angle) * length) - x;
+			dy = TTOF(gridY) + ((abs(fCos(angle)) + F1) * length) - y;
 
-			break;
+			x += dx;
+			y += dy;
+			dx = (dx << 10) / msps;
+			dy = (dy << 10) / msps;
+
+			return;
 
 		case 31:
 
@@ -385,14 +422,18 @@ Event* Event::step (unsigned int ticks, int msps) {
 			if (ticks > level->getEventTime(gridX, gridY)) {
 
 				if (animType == E_LEFTANIM)
-					dy = -(F16 + y - (TTOF(gridY) - (set[E_MULTIPURPOSE] * F12))) * 10;
+					dy = -(F16 + y - (TTOF(gridY) - (set->multiA * F12))) * 10;
 				else
-					dy = (F16 + y - (TTOF(gridY) - (set[E_MULTIPURPOSE] * F12))) * 10;
+					dy = (F16 + y - (TTOF(gridY) - (set->multiA * F12))) * 10;
 
 			} else {
 
 				dy = TTOF(gridY) + F16 - y;
-				dy = ((dy << 10) / msps) * set[E_MOVEMENTSP];
+
+				y += dy;
+				dy = ((dy << 10) / msps);
+
+				return;
 
 			}
 
@@ -455,8 +496,9 @@ Event* Event::step (unsigned int ticks, int msps) {
 				if (players[count].getLevelPlayer()->overlap(x + F8, y + F4 - height, width - F16,
 					height - F8)) {
 
-					players[count].getLevelPlayer()->setSpeed(set[E_YAXIS]? set[E_MAGNITUDE] * F4: set[E_MAGNITUDE] * F40,
-						set[E_YAXIS]? set[E_MULTIPURPOSE] * -F20: 0);
+					players[count].getLevelPlayer()->setSpeed(
+						set->multiB? set->magnitude * F4: set->magnitude * F40,
+						set->multiB? set->multiA * -F20: 0);
 
 				}
 
@@ -539,16 +581,50 @@ Event* Event::step (unsigned int ticks, int msps) {
 	}
 
 
-	dx /= set[E_MOVEMENTSP];
-	dy /= set[E_MOVEMENTSP];
+	dx /= set->speed;
+	dy /= set->speed;
 	x += (dx * msps) >> 10;
 	y += (dy * msps) >> 10;
 
+	return;
+
+}
+
+
+/**
+ * Event iteration.
+ *
+ * @param ticks Time
+ * @param msps Ticks per step
+ *
+ * @return Remaining event
+ */
+Event* StandardEvent::step (unsigned int ticks, int msps) {
+
+	LevelPlayer* levelPlayer;
+	fixed width, height;
+	int count;
+
+
+	set = prepareStep(ticks, msps);
+
+	if (!set) return remove();
+
+
+	levelPlayer = localPlayer->getLevelPlayer();
+
+	// Find dimensions
+	width = getWidth();
+	height = getHeight();
+
+	// Move
+	move(ticks, msps);
+
 	// Choose animation and direction
 
-	if ((animType == E_LEFTANIM) || (animType == E_RIGHTANIM)) {
+	if ((animType & ~1) == E_LEFTANIM) {
 
-		switch (set[E_BEHAVIOUR]) {
+		switch (set->movement) {
 
 			case 2:
 
@@ -605,12 +681,9 @@ Event* Event::step (unsigned int ticks, int msps) {
 			case 6:
 
 				// Use the path from the level file
-
-				count = level->path[set[E_MULTIPURPOSE]].node;
-
 				// Check movement direction
-				if ((count < 3) ||
-					(level->path[set[E_MULTIPURPOSE]].x[count] <= level->path[set[E_MULTIPURPOSE]].x[count - 3]))
+				if ((FTOI(node) < 3) ||
+					(level->path[set->multiA].x[FTOI(node)] <= level->path[set->multiA].x[FTOI(node) - 3]))
 					animType = E_LEFTANIM;
 				else
 					animType = E_RIGHTANIM;
@@ -702,9 +775,9 @@ Event* Event::step (unsigned int ticks, int msps) {
 
 				// Moving platform
 
-				if (x < TTOF(gridX) - (set[E_BRIDGELENGTH] << 14))
+				if (x < TTOF(gridX) - (set->pieceSize << 14))
 					animType = E_RIGHTANIM;
-				else if (!animType || (x > TTOF(gridX + set[E_BRIDGELENGTH])))
+				else if (x > TTOF(gridX + set->pieceSize))
 					animType = E_LEFTANIM;
 
 				break;
@@ -733,12 +806,12 @@ Event* Event::step (unsigned int ticks, int msps) {
 
 				if (ticks > level->getEventTime(gridX, gridY)) {
 
-					if (y <= F16 + TTOF(gridY) - (set[E_MULTIPURPOSE] * F12))
+					if (y <= F16 + TTOF(gridY) - (set->multiA * F12))
 						animType = E_RIGHTANIM;
 					else if (y >= F16 + TTOF(gridY)) {
 
 						animType = E_LEFTANIM;
-						level->setEventTime(gridX, gridY, ticks + (set[E_YAXIS] * 50));
+						level->setEventTime(gridX, gridY, ticks + (set->multiB * 50));
 
 					}
 
@@ -762,7 +835,7 @@ Event* Event::step (unsigned int ticks, int msps) {
 					} else if (animType == E_RIGHTANIM) {
 
 						if (level->checkMaskDown(x + width + F4, y - (height >> 1)) ||
-							(x + width + F4 > viewX + ITOF(viewW)))
+							(x + width + F4 > viewX + ITOF(320)))
 							animType = E_LEFTANIM;
 
 					}
@@ -808,26 +881,27 @@ Event* Event::step (unsigned int ticks, int msps) {
 
 	// If the event has been destroyed, play its finishing animation and set its
 	// reaction time
-	if (set[E_HITSTOKILL] &&
-		(level->getEventHits(gridX, gridY) >= set[E_HITSTOKILL]) &&
-		(animType != E_LFINISHANIM) && (animType != E_RFINISHANIM)) {
+	if (set->strength &&
+		(level->getEventHits(gridX, gridY) >= set->strength) &&
+		((animType & ~1) != E_LFINISHANIM)) {
 
 		destroy(ticks);
 
 	}
 
 
-	// Generate bullet
-	if (set[E_BULLETSP]) {
+	if (set->bulletPeriod) {
 
-		if ((ticks % (set[E_BULLETSP] * 25) >
-			(unsigned int)(set[E_BULLETSP] * 25) - T_SHOOT) &&
-			((animType == E_LEFTANIM) || (animType == E_RIGHTANIM))) {
+		count = level->getAnim(set->anims[E_LSHOOTANIM | (animType & 1)])->getLength() * set->animSpeed << 5;
 
+		if ((ticks % (set->bulletPeriod * 32) > (unsigned int)(set->bulletPeriod * 32) - count) &&
+			((animType & ~1) == E_LEFTANIM)) {
+
+			// Enter firing mode
 			if (animType == E_LEFTANIM) animType = E_LSHOOTANIM;
 			else animType = E_RSHOOTANIM;
 
-			level->setEventTime(gridX, gridY, ticks + T_SHOOT);
+			level->setEventTime(gridX, gridY, ticks + count);
 
 		}
 
@@ -838,28 +912,23 @@ Event* Event::step (unsigned int ticks, int msps) {
 	if (level->getEventTime(gridX, gridY) &&
 		(ticks > level->getEventTime(gridX, gridY))) {
 
-		if ((animType == E_LFINISHANIM) || (animType == E_RFINISHANIM)) {
+		if ((animType & ~1) == E_LFINISHANIM) {
 
 			// The event has been destroyed, so remove it
 			level->clearEvent(gridX, gridY);
 
 			return remove();
 
-		} else if (animType == E_LSHOOTANIM) {
+		} else if ((animType & ~1) == E_LSHOOTANIM) {
 
-			if ((set[E_BULLET] < 32) &&
-				(level->getBullet(set[E_BULLET])[B_SPRITE] != 0))
-				level->bullets = new Bullet(this, false, ticks);
+			if ((set->bullet < 32) &&
+				(level->getBullet(set->bullet)[B_SPRITE | (animType & 1)] != 0))
+				level->bullets = new Bullet(
+					x + getAnim()->getShootX(),
+					y + getAnim()->getShootY() - F4,
+					set->bullet, (animType & 1)? true: false, ticks);
 
-			animType = E_LEFTANIM;
-
-		} else if (animType == E_RSHOOTANIM) {
-
-			if ((set[E_BULLET] < 32) &&
-				(level->getBullet(set[E_BULLET])[B_SPRITE + 1] != 0))
-				level->bullets = new Bullet(this, true, ticks);
-
-			animType = E_RIGHTANIM;
+			animType = E_LEFTANIM | (animType & 1);
 
 		} else {
 
@@ -872,7 +941,7 @@ Event* Event::step (unsigned int ticks, int msps) {
 
 	if (level->getStage() == LS_END) return this;
 
-	if ((animType == E_LFINISHANIM) || (animType == E_RFINISHANIM)) return this;
+	if ((animType & ~1) == E_LFINISHANIM) return this;
 
 
 	// Handle contact with player
@@ -885,10 +954,10 @@ Event* Event::step (unsigned int ticks, int msps) {
 
 		fixed offset = 0;
 
-		if (getAnim(animType) && noAnimOffset)
-			offset = getAnim(animType)->getOffset();
+		if ((animType != E_NOANIM) && getAnim() && noAnimOffset)
+			offset = getAnim()->getOffset();
 
-		if (set[E_MODIFIER] == 6) {
+		if (set->modifier == 6) {
 
 			if (width && height &&
 				levelPlayer->overlap(x, y + offset - height, width - F8, F8) &&
@@ -924,57 +993,57 @@ Event* Event::step (unsigned int ticks, int msps) {
 }
 
 
-void Event::draw (unsigned int ticks, int change) {
+/**
+ * Draw standard event.
+ *
+ * @param ticks Time
+ * @param change Time since last iteration
+ */
+void StandardEvent::draw (unsigned int ticks, int change) {
 
 	Anim* anim;
-	signed char* set;
-	bool drawExplosion;
+	unsigned char frame;
 
 
 	if (next) next->draw(ticks, change);
 
 
 	// Uncomment the following to see the area of the event
-	/*drawRect(FTOI(getDrawX(change) - viewX),
-		FTOI(getDrawY(change) - (viewY + getHeight())), FTOI(getWidth()),
+	/*drawRect(FTOI(getDrawX(change)),
+		FTOI(getDrawY(change) - getHeight()), FTOI(getWidth()),
 		FTOI(getHeight()), 88);*/
 
-
-	// Get the event properties
-	set = level->getEvent(gridX, gridY);
 
 	// If the event has been removed from the grid, do not show it
 	if (!set) return;
 
 	// Check if the event has anything to draw
-	if (!animType) return;
+	if (animType == E_NOANIM) return;
 
-	// Decide on the exact frame to draw
-	if ((animType == E_LFINISHANIM) || (animType == E_RFINISHANIM))
-		frame = (ticks + T_FINISH - level->getEventTime(gridX, gridY)) / 40;
-	else if (set[E_ANIMSP])
-		frame = ticks / (set[E_ANIMSP] * 40);
-	else
-		frame = ticks / 20;
+
+	// Decide on the frame to draw
+	anim = getAnim();
+
+	if ((animType & ~1) == E_LFINISHANIM) {
+
+		frame = (ticks + (anim->getLength() * set->animSpeed << 3) - level->getEventTime(gridX, gridY)) / (set->animSpeed << 3);
+
+	} else if ((animType & ~1) == E_LSHOOTANIM) {
+
+		frame = (ticks + (anim->getLength() * set->animSpeed << 5) - level->getEventTime(gridX, gridY)) / (set->animSpeed << 5);
+
+	} else {
+
+		frame = (ticks / (set->animSpeed << 5)) + gridX + gridY;
+
+	}
+
+	anim->setFrame(frame, true);
 
 
 	// Calculate new positions
 	fixed changeX = getDrawX(change);
 	fixed changeY = getDrawY(change);
-
-	anim = getAnim(animType);
-
-	// Check if an explosive effect should be drawn
-	drawExplosion = false;
-	if (set[animType] < 0) {
-
-		// Explosions may only occur with finish animations
-		drawExplosion = (animType == E_RFINISHANIM || animType == E_LFINISHANIM);
-
-	}
-
-	// Decide on the frame to draw
-	anim->setFrame(frame + gridX + gridY, true);
 
 
 	// Correct the position without altering the animation
@@ -986,19 +1055,21 @@ void Event::draw (unsigned int ticks, int change) {
 	else if (onlyLAnimOffset && animType == E_RIGHTANIM) {
 
 		changeY += anim->getOffset();
-		changeY -= getAnim(E_LEFTANIM)->getOffset();
+		changeY -= level->getAnim(set->anims[E_LEFTANIM] & 0x7F)->getOffset();
 
 	}
 	else if (onlyRAnimOffset && animType == E_LEFTANIM) {
 
 		changeY += anim->getOffset();
-		changeY -= getAnim(E_RIGHTANIM)->getOffset();
+		changeY -= level->getAnim(set->anims[E_RIGHTANIM] & 0x7F)->getOffset();
 
 	}
 
 
 	// Draw the event
-	if (drawExplosion) {
+
+	// Check if an explosive effect should be drawn
+	if (((animType & ~1) == E_LFINISHANIM) && (set->anims[animType] & 0x80)) {
 
 		// In case of an explosion
 
@@ -1032,8 +1103,7 @@ void Event::draw (unsigned int ticks, int change) {
 
 
 	// If the event has been destroyed, draw an explosion
-	if (set[E_HITSTOKILL] &&
-		((animType == E_LFINISHANIM) || (animType == E_RFINISHANIM))) {
+	if (set->strength && ((animType & ~1) == E_LFINISHANIM)) {
 
 		anim = level->getMiscAnim(2);
 		anim->setFrame(frame, false);
@@ -1046,73 +1116,3 @@ void Event::draw (unsigned int ticks, int change) {
 
 }
 
-
-void Event::drawEnergy (unsigned int ticks) {
-
-	Anim* anim;
-	signed char* set;
-	int hits;
-
-	// Get the event properties
-	set = level->getEvent(gridX, gridY);
-
-	if (!set || set[E_MODIFIER] != 8) {
-
-		if (next) next->drawEnergy(ticks);
-
-		return;
-
-	} else if (set[E_HITSTOKILL]) {
-
-		// Draw boss energy bar
-
-		hits = level->getEventHits(gridX, gridY) * 100 / set[E_HITSTOKILL];
-
-
-		// Devan head
-
-		anim = level->getMiscAnim(1);
-		anim->setFrame(0, true);
-
-		if (ticks < flashTime) anim->flashPalette(0);
-
-		anim->draw(ITOF(viewW - 44), ITOF(hits + 48));
-
-		if (ticks < flashTime) anim->restorePalette();
-
-
-		// Bar
-		drawRect(viewW - 40, hits + 40, 12, 100 - hits, (ticks < flashTime)? 0: 32);
-
-	}
-
-	return;
-
-}
-
-
-void Event::useLeftAnimOffset() {
-
-	onlyLAnimOffset = true;
-
-	return;
-
-}
-
-
-void Event::useRightAnimOffset() {
-
-	onlyRAnimOffset = true;
-
-	return;
-
-}
-
-
-void Event::dontUseAnimOffset() {
-
-	noAnimOffset = true;
-
-	return;
-
-}
