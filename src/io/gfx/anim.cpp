@@ -44,7 +44,6 @@ Anim::Anim(){
 
 	frame = 0;
 	yOffset = 0;
-	ignoreDefaultYOffset = false;
 }
 
 

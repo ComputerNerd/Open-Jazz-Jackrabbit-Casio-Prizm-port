@@ -115,6 +115,8 @@ int JJ1Level::loadPanel () {
 
 
 	rle_panel=(unsigned char*)realloc(rle_panel,SW*32);
+	panel.pix=rle_panel;
+	
 	return E_NONE;
 }
 

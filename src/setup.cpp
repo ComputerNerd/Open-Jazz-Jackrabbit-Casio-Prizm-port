@@ -31,7 +31,6 @@
 #include "io/controls.h"
 #include "io/file.h"
 #include "io/gfx/video.h"
-//#include "io/sound.h"
 #include "player/player.h"
 #include "setup.h"
 #include "util.h"
@@ -89,7 +88,7 @@ void Setup::load (int* videoW, int* videoH, bool* fullscreen, int* videoScale) {
 	}
 
 	// Check that the config file has the correct version
-	if (file->loadChar() != 3) {
+	if (file->loadChar() != 4) {
 
 		log("Valid configuration file not found.");
 
@@ -102,24 +101,6 @@ void Setup::load (int* videoW, int* videoH, bool* fullscreen, int* videoScale) {
 	*videoW = file->loadShort(7680);
 	*videoH = file->loadShort(4800);
 	count = file->loadChar();
-#ifndef FULLSCREEN_ONLY
-	*fullscreen = count & 1;
-#endif
-#ifdef SCALE
-	if (count >= 10) count = 2;
-	*videoScale = count >> 1;
-#endif
-
-
-	// Read controls
-	for (count = 0; count < CONTROLS - 4; count++)
-		controls.setKey(count, (SDLKey)(file->loadInt()));
-
-	for (count = 0; count < CONTROLS; count++)
-		controls.setButton(count, file->loadInt());
-
-	for (count = 0; count < CONTROLS; count++)
-		controls.setAxis(count, file->loadInt(), file->loadInt());
 
 	// Read the player's name
 	for (count = 0; count < STRING_LENGTH; count++)
@@ -133,9 +114,6 @@ void Setup::load (int* videoW, int* videoH, bool* fullscreen, int* videoScale) {
 	setup.characterCols[2] = file->loadChar();
 	setup.characterCols[3] = file->loadChar();
 
-	// Read the sound effect volume
-	soundsVolume = file->loadChar();
-	if (soundsVolume > MAX_VOLUME) soundsVolume = MAX_VOLUME;
 
 	// Read gameplay options
 	count = file->loadChar();
@@ -159,7 +137,6 @@ void Setup::save () {
 
 	File *file;
 	int count;
-	int videoScale;
 
 	// Open config file
 	try {
@@ -184,36 +161,7 @@ void Setup::save () {
 
 
 	// Write the version number
-	file->storeChar(3);
-
-	// Write video settings
-	file->storeShort(video.getWidth());
-	file->storeShort(video.getHeight());
-#ifdef SCALE
-	videoScale = video.getScaleFactor();
-#else
-	videoScale = 1;
-#endif
-	videoScale <<= 1;
-#ifndef FULLSCREEN_ONLY
-	videoScale |= video.isFullscreen()? 1: 0;
-#endif
-	file->storeChar(videoScale);
-
-
-	// Write controls
-	for (count = 0; count < CONTROLS - 4; count++)
-		file->storeInt(controls.getKey(count));
-
-	for (count = 0; count < CONTROLS; count++)
-		file->storeInt(controls.getButton(count));
-
-	for (count = 0; count < CONTROLS; count++) {
-
-		file->storeInt(controls.getAxis(count));
-		file->storeInt(controls.getAxisDirection(count));
-
-	}
+	file->storeChar(4);
 
 	// Write the player's name
 	for (count = 0; count < STRING_LENGTH; count++)
@@ -224,9 +172,6 @@ void Setup::save () {
 	file->storeChar(setup.characterCols[1]);
 	file->storeChar(setup.characterCols[2]);
 	file->storeChar(setup.characterCols[3]);
-
-	// Write the sound effect volume
-	file->storeChar(soundsVolume);
 
 	// Write gameplay options
 

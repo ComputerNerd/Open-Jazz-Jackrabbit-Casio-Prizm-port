@@ -30,6 +30,7 @@
 
 #include "gamemode.h"
 
+#include "io/network.h"
 #include "level/level.h"
 
 
@@ -122,9 +123,10 @@ class Game {
 		virtual int  setLevel      (char *fileName) = 0;
 		int          play          ();
 		void         view          (int change);
+		virtual void send          (unsigned char *buffer) = 0;
 		virtual int  step          (unsigned int ticks) = 0;
 		virtual void score         (unsigned char team) = 0;
-		virtual void setCheckpoint (int gridX, int gridY)=0;
+		virtual void setCheckpoint (int gridX, int gridY) = 0;
 		void         resetPlayer   (Player *player);
 
 };
@@ -138,10 +140,38 @@ class LocalGame : public Game {
 		~LocalGame ();
 
 		int  setLevel      (char *fileName);
+		void send          (unsigned char *buffer);
 		int  step          (unsigned int ticks);
 		void score         (unsigned char team);
 		void setCheckpoint (int gridX, int gridY);
 
 };
+
+
+
+
+/// Game handling for multiplayer clients
+class ClientGame : public Game {
+
+	private:
+		File          *file; ///< File to which the incoming level will be written
+		unsigned char  recvBuffer[BUFFER_LENGTH]; ///< Buffer containing data received from server
+		int            received; ///< Amount of data received from server
+		int            clientID; ///< Client's index on the server
+		int            maxPlayers; ///< The maximum number of players in the game
+		int            sock; ///< Client socket
+
+	public:
+		ClientGame         (char *address);
+		~ClientGame        ();
+
+		int  setLevel      (char *fileName);
+		void send          (unsigned char *buffer);
+		int  step          (unsigned int ticks);
+		void score         (unsigned char team);
+		void setCheckpoint (int gridX, int gridY);
+
+};
+
 #endif
 

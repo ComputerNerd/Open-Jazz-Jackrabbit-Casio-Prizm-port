@@ -377,7 +377,9 @@ void JJ1Level::draw () {
 
 	// Show panel
 
-	if (ammoOffset != 0) {
+	blitToCanvas(&panel,0,canvasH-33);
+
+	if (ammoOffset) {
 
 		if (ammoOffset < 0) {
 
@@ -389,11 +391,11 @@ void JJ1Level::draw () {
 		src[0] = 0;
 		src[1] = FTOI(ammoOffset);
 		src[2] = 64;
-		src[3] = 26 - src.y;
+		src[3] = 26 - src[1];
 		blitPartToCanvas(&panelAmmo[ammoType],248,canvasH-(33-3),src);
-	}
+	}else
+		blitToCanvas(&panelAmmo[ammoType],248,canvasH-(33-3));
 
-	blitToCanvas(&panel,0,canvasH-33);
 	drawRect(0, canvasH - 1, SW, 1, LEVEL_BLACK);
 
 

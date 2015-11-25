@@ -1,0 +1,26 @@
+I have ported Open Jazz jackrabbit to the Casio Prizm. Here are the controls
+	keys[C_UP].key		= KEY_PRGM_UP;
+	keys[C_DOWN].key	= KEY_PRGM_DOWN;
+	keys[C_LEFT].key	= KEY_PRGM_LEFT;
+	keys[C_RIGHT].key	= KEY_PRGM_RIGHT;
+	keys[C_JUMP].key	= KEY_PRGM_ALPHA;
+	keys[C_SWIM].key	= keys[C_JUMP].key;
+	keys[C_FIRE].key	= KEY_PRGM_SHIFT;
+	keys[C_CHANGE].key	= KEY_PRGM_OPTN;//change weapon
+	keys[C_ENTER].key	= KEY_PRGM_RETURN;
+	keys[C_ESCAPE].key	= KEY_PRGM_EXIT;
+	keys[C_STATS].key	= KEY_PRGM_F1;
+	keys[C_PAUSE].key	= KEY_PRGM_F2;
+	keys[C_YES].key		= KEY_PRGM_F3;
+	keys[C_NO].key		= KEY_PRGM_F4;
+Here is the source code https://github.com/ComputerNerd/Open-Jazz-Jackrabbit-Casio-Prizm-port
+To use the program place openjazz.g3a in the root directory then create a folder called jazz place openjazz.000 in that folder.
+Then download one of the many versions of jazz jackrabbit and place the resource files in that folder.
+You do not need the sound files and you do not need some "extra" files.
+For example the cd version includes a demo of another game you don't need that.
+Also you don't need the *.exe file.
+Also there are some unneeded cutscene files that take up lots of memory those are not needed.
+When in doubt use grep on the source code to see if the file is needed.
+Screenshots:
+http://i.imgur.com/bjctl4A.png
+https://i.imgur.com/f1kEpNm.png

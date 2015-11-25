@@ -417,6 +417,7 @@ int loop (LoopType type, PaletteEffect* paletteEffects) {
 		globalTicks = SDL_GetTicks();
 	#endif
 
+	#ifndef CASIO
 	if (globalTicks - prevTicks < T_ACTIVE_FRAME) {
 
 		// Limit framerate
@@ -424,6 +425,7 @@ int loop (LoopType type, PaletteEffect* paletteEffects) {
 		globalTicks = SDL_GetTicks();
 
 	}
+	#endif
 
 	// Show what has been drawn
 	video.flip(globalTicks - prevTicks, paletteEffects);

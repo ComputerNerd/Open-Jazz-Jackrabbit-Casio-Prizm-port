@@ -182,7 +182,6 @@ class JJ1Level : public Level {
 		objid_t			panelAmmoramid[6]={INVALID_OBJ,INVALID_OBJ,INVALID_OBJ,INVALID_OBJ,INVALID_OBJ,INVALID_OBJ};
 		JJ1Event*     events; ///< Active events
 		JJ1Bullet*    bullets; ///< Active bullets
-		JJ1Event*     events; ///< JJ1Events
 		//char*         musicFile; ///< Music file name
 		char*         sceneFile; ///< File name of cutscene to play when level has been completed
 		Sprite*       spriteSet; ///< Sprites
