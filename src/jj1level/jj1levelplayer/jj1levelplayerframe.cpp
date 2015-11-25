@@ -42,7 +42,7 @@
 #include "io/controls.h"
 #include "io/gfx/font.h"
 #include "io/gfx/video.h"
-#include "io/sound.h"
+//#include "io/sound.h"
 #include "util.h"
 
 
@@ -280,7 +280,7 @@ void JJ1LevelPlayer::control (unsigned int ticks, int msps) {
 
 			event = LPE_NONE;
 
-			playSound(S_JUMPA);
+			//playSound(S_JUMPA);
 
 		}
 

@@ -38,11 +38,15 @@
 #include "jj1levelplayer.h"
 
 #include "game/game.h"
-#include "io/sound.h"
+//#include "io/sound.h"
 #include "setup.h"
-
+#include "game/game.h"
+#include "game/gamemode.h"
+#include "player/player.h"
 #include <string.h>
-
+#ifdef CASIO
+	#include "platforms/casio.h"
+#endif
 
 /**
  * Create a JJ1 level player.
@@ -59,7 +63,6 @@ JJ1LevelPlayer::JJ1LevelPlayer (Player* parent, Anim** newAnims, unsigned char s
 		PCO_LEVEL1, PCO_YELLOW, PCO_LEVEL2, PCO_ORANGE, PCO_LEVEL3, PCO_LEVEL4,
 		PCO_SANIM, PCO_LANIM, PCO_LEVEL5, 256};
 	int count, start, length;
-
 
 	player = parent;
 
@@ -80,7 +83,7 @@ JJ1LevelPlayer::JJ1LevelPlayer (Player* parent, Anim** newAnims, unsigned char s
 	// Create the player's palette
 
 	for (count = 0; count < 256; count++)
-		palette[count].r = palette[count].g = palette[count].b = count;
+		palette[count]=((count&248)<<8)|((count&252)<<3)|((count&248)>>3);
 
 
 	// Fur colours
@@ -88,9 +91,10 @@ JJ1LevelPlayer::JJ1LevelPlayer (Player* parent, Anim** newAnims, unsigned char s
 	start = offsets[player->cols[0]];
 	length = offsets[player->cols[0] + 1] - start;
 
-	for (count = 0; count < 16; count++)
-		palette[count + 48].r = palette[count + 48].g = palette[count + 48].b =
-			(count * length / 16) + start;
+	for (count = 0; count < 16; count++){
+		unsigned char tdat=(count * length / 16) + start;
+		palette[count + 48]=((tdat&248)<<8)|((tdat&252)<<3)|((tdat&248)>>3);
+	}
 
 
 	// Bandana colours
@@ -98,33 +102,31 @@ JJ1LevelPlayer::JJ1LevelPlayer (Player* parent, Anim** newAnims, unsigned char s
 	start = offsets[player->cols[1]];
 	length = offsets[player->cols[1] + 1] - start;
 
-	for (count = 0; count < 16; count++)
-		palette[count + 32].r = palette[count + 32].g = palette[count + 32].b =
- 			(count * length / 16) + start;
-
+	for (count = 0; count < 16; count++){
+		unsigned char tdat=(count * length / 16) + start;
+		palette[count + 32]=((tdat&248)<<8)|((tdat&252)<<3)|((tdat&248)>>3);
+ 			
+	}
 
 	// Gun colours
 
 	start = offsets[player->cols[2]];
 	length = offsets[player->cols[2] + 1] - start;
 
-	for (count = 0; count < 9; count++)
-		palette[count + 23].r = palette[count + 23].g = palette[count + 23].b =
-			(count * length / 9) + start;
-
+	for (count = 0; count < 9; count++){
+		unsigned char tdat=(count * length / 9) + start;
+		palette[count + 23]=((tdat&248)<<8)|((tdat&252)<<3)|((tdat&248)>>3);
+	}
 
 	// Wristband colours
 
 	start = offsets[player->cols[3]];
 	length = offsets[player->cols[3] + 1] - start;
 
-	for (count = 0; count < 8; count++)
-		palette[count + 88].r = palette[count + 88].g = palette[count + 88].b =
-			(count * length / 8) + start;
-
-
-	return;
-
+	for (count = 0; count < 8; count++){
+		unsigned char tdat=(count * length / 8) + start;
+		palette[count + 88]=((tdat&248)<<8)|((tdat&252)<<3)|((tdat&248)>>3);		
+	}
 }
 
 
@@ -309,7 +311,7 @@ bool JJ1LevelPlayer::hit (Player *source, unsigned int ticks) {
 
 		if (birds) birds->hit();
 
-		playSound(S_OW);
+		//playSound(S_OW);
 
 	}
 
@@ -745,7 +747,7 @@ bool JJ1LevelPlayer::touchEvent (unsigned char gridX, unsigned char gridY, unsig
 
 			setEvent(gridX, gridY);
 
-			level->playSound(set->sound);
+			//level->playSound(set->sound);
 
 			break;
 
@@ -795,96 +797,5 @@ bool JJ1LevelPlayer::touchEvent (unsigned char gridX, unsigned char gridY, unsig
 			break;
 
 	}
-
 	return false;
-
 }
-
-
-/**
- * Fill a buffer with player data.
- *
- * @param buffer The buffer
- */
-void JJ1LevelPlayer::send (unsigned char *buffer) {
-
-	// Copy data to be sent to clients/server
-
-	buffer[9] = countBirds();
-	buffer[23] = energy;
-	buffer[25] = shield;
-	buffer[26] = floating;
-	buffer[27] = getFacing();
-	buffer[29] = jumpHeight >> 24;
-	buffer[30] = (jumpHeight >> 16) & 255;
-	buffer[31] = (jumpHeight >> 8) & 255;
-	buffer[32] = jumpHeight & 255;
-	buffer[33] = jumpY >> 24;
-	buffer[34] = (jumpY >> 16) & 255;
-	buffer[35] = (jumpY >> 8) & 255;
-	buffer[36] = jumpY & 255;
-	buffer[37] = x >> 24;
-	buffer[38] = (x >> 16) & 255;
-	buffer[39] = (x >> 8) & 255;
-	buffer[40] = x & 255;
-	buffer[41] = y >> 24;
-	buffer[42] = (y >> 16) & 255;
-	buffer[43] = (y >> 8) & 255;
-	buffer[44] = y & 255;
-
-	return;
-
-}
-
-
-/**
- * Adjust player data based on the contents of a given buffer.
- *
- * @param buffer The buffer
- */
-void JJ1LevelPlayer::receive (unsigned char *buffer) {
-
-	int count;
-
-	// Interpret data received from client/server
-
-	switch (buffer[1]) {
-
-		case MT_P_ANIMS:
-
-			for (count = 0; count < JJ1PANIMS; count++)
-				anims[count] = level->getAnim(buffer[MTL_P_ANIMS + count]);
-
-			break;
-
-		case MT_P_TEMP:
-
-			if ((buffer[9] > 0) && (birds == NULL)) {
-
-				birds = new JJ1Bird(birds, this, FTOT(x), FTOT(y) - 2);
-
-			}
-
-			if (birds) {
-
-				birds = birds->setFlockSize(buffer[9]);
-
-			}
-
-			energy = buffer[23];
-			shield = buffer[25];
-			floating = buffer[26];
-			facing = buffer[27];
-			jumpHeight = (buffer[29] << 24) + (buffer[30] << 16) + (buffer[31] << 8) + buffer[32];
-			jumpY = (buffer[33] << 24) + (buffer[34] << 16) + (buffer[35] << 8) + buffer[36];
-			x = (buffer[37] << 24) + (buffer[38] << 16) + (buffer[39] << 8) + buffer[40];
-			y = (buffer[41] << 24) + (buffer[42] << 16) + (buffer[43] << 8) + buffer[44];
-
-			break;
-
-	}
-
-	return;
-
-}
-

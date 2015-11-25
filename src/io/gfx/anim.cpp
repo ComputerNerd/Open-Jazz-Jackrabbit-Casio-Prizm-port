@@ -36,7 +36,7 @@
 /**
  * Create empty animation.
  */
-Anim::Anim () {
+Anim::Anim(){
 
 	sprites = new Sprite *[19];
 	xOffsets = new signed char[19];
@@ -45,9 +45,6 @@ Anim::Anim () {
 	frame = 0;
 	yOffset = 0;
 	ignoreDefaultYOffset = false;
-
-	return;
-
 }
 
 
@@ -59,8 +56,6 @@ Anim::~Anim () {
 	delete[] sprites;
 	delete[] xOffsets;
 	delete[] yOffsets;
-
-	return;
 
 }
 
@@ -266,7 +261,6 @@ void Anim::draw (fixed x, fixed y) {
 
 	}
 
-
 	return;
 
 }
@@ -308,7 +302,7 @@ void Anim::disableDefaultOffset() {
  * @param start The first entry to use
  * @param amount The number of entries to use
  */
-void Anim::setPalette (SDL_Color *palette, int start, int amount) {
+void Anim::setPalette (unsigned short *palette, int start, int amount) {
 
 	sprites[frame]->setPalette(palette, start, amount);
 

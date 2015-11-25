@@ -27,9 +27,9 @@
 
 
 #include "io/gfx/sprite.h"
-
+#ifndef CASIO
 #include <SDL/SDL.h>
-
+#endif
 
 // Class
 
@@ -37,11 +37,10 @@
 class JJ1Planet {
 
 	private:
-		SDL_Color palette[256]; /// Palette
-		Sprite    sprite; /// Planet image
-		char*     name; /// Planet name
-		int       id; /// World number
-
+		unsigned short	palette[256]; /// Palette
+		Sprite			sprite; /// Planet image
+		char*			name; /// Planet name
+		int				id; /// World number
 	public:
 		JJ1Planet  (char * fileName, int previous);
 		~JJ1Planet ();

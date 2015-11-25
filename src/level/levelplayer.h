@@ -33,9 +33,9 @@
 
 
 #include "level/movable.h"
-
+#ifndef CASIO
 #include <SDL/SDL.h>
-
+#endif
 
 // Classes
 
@@ -45,7 +45,7 @@ class Player;
 class LevelPlayer : public Movable {
 
 	protected:
-		SDL_Color palette[256]; ///< Palette (for custom colours)
+		unsigned short palette[256]; ///< Palette (for custom colours)
 
 	public:
 		Player* player; ///< Corresponding game player
@@ -55,9 +55,6 @@ class LevelPlayer : public Movable {
 		virtual void reset   (int startX, int startY) = 0;
 
 		virtual int  countBirds () = 0;
-
-		virtual void send    (unsigned char* buffer) = 0;
-		virtual void receive (unsigned char* buffer) = 0;
 
 };
 

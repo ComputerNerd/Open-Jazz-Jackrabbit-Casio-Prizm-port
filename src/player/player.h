@@ -90,14 +90,14 @@ enum PlayerEvent {
 class Anim;
 class JJ1LevelPlayer;
 class JJ1BonusLevelPlayer;
-class JJ2LevelPlayer;
+//class JJ2LevelPlayer;
 class LevelPlayer;
 
 /// Game player
 class Player {
 
 	private:
-		Game*                game;
+		
 		LevelPlayer*         levelPlayer; ///< Level player base class
 
 		char*           name; ///< Name
@@ -114,6 +114,7 @@ class Player {
 		void addAmmo (int type, int amount);
 
 	public:
+		Game*                game;
 		int teamScore; ///< Team's total score
 
 		Player  ();
@@ -127,7 +128,7 @@ class Player {
 		LevelPlayer*         getLevelPlayer         ();
 		JJ1BonusLevelPlayer* getJJ1BonusLevelPlayer ();
 		JJ1LevelPlayer*      getJJ1LevelPlayer      ();
-		JJ2LevelPlayer*      getJJ2LevelPlayer      ();
+		//JJ2LevelPlayer*      getJJ2LevelPlayer      ();
 
 		void            addLife           ();
 		void            addScore          (int addedScore);
@@ -144,11 +145,8 @@ class Player {
 		void            setCheckpoint     (int gridX, int gridY);
 		void            setControl        (int control, bool state);
 
-		void            send              (unsigned char* buffer);
-		void            receive           (unsigned char* buffer);
-
 		friend class JJ1LevelPlayer;
-		friend class JJ2LevelPlayer;
+		//friend class JJ2LevelPlayer;
 
 };
 

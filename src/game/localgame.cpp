@@ -33,7 +33,11 @@
 #include "player/player.h"
 #include "setup.h"
 #include "util.h"
-
+#ifdef CASIO
+	#include <fxcg/display.h>
+	#include <fxcg/keyboard.h>
+	#include "platforms/casio.h"
+#endif
 
 /**
  * Create a single-player local game
@@ -42,19 +46,15 @@
  * @param gameDifficulty Difficulty setting
  */
 LocalGame::LocalGame (char *firstLevel, int gameDifficulty) {
-
 	levelFile = createString(firstLevel);
 	levelType = getLevelType(firstLevel);
-
 	difficulty = gameDifficulty;
 
 	mode = new SingleGameMode();
-
 	// Create the player
 	nPlayers = 1;
 	localPlayer = players = new Player[1];
 	localPlayer->init(this, setup.characterName, NULL, 0);
-
 	return;
 
 }
@@ -94,21 +94,6 @@ int LocalGame::setLevel (char *fileName) {
 
 }
 
-
-/**
- * No data is sent in local games
- *
- * @param buffer Data that will not be sent. First byte indicates length.
- */
-void LocalGame::send (unsigned char *buffer) {
-
-	// Do nothing
-
-	return;
-
-}
-
-
 /**
  * Game iteration - nothing to be done in local games
  *
@@ -146,11 +131,13 @@ void LocalGame::score (unsigned char team) {
  * @param gridY Y-coordinate (in tiles) of the checkpoint
  */
 void LocalGame::setCheckpoint (int gridX, int gridY) {
-
+	#ifdef CASIO
+		drawStrL(1,"S1");
+	#endif
 	checkX = gridX;
 	checkY = gridY;
-
+	#ifdef CASIO
+		drawStrL(1,"S2");
+	#endif
 	return;
-
 }
-

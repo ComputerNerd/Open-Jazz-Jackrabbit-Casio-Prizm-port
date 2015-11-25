@@ -39,9 +39,9 @@
 #include "level/levelplayer.h"
 #include "player/player.h"
 #include "OpenJazz.h"
-
+#ifndef CASIO
 #include <SDL/SDL.h>
-
+#endif
 
 // Constants
 
@@ -154,32 +154,28 @@ class JJ1LevelPlayer : public LevelPlayer {
 
 		void reset (int startX, int startY);
 
-		void              addItem     ();
-		void              clearEvent  (unsigned char gridX, unsigned char gridY);
-		int               countBirds  ();
-		Anim*             getAnim     ();
-		int               getEnemies  ();
-		int               getEnergy   ();
-		bool              getFacing   ();
-		int               getItems    ();
-		bool              hasGem      ();
-		bool              hit         (Player* source, unsigned int ticks);
-		void              kill        (Player* source, unsigned int ticks);
-		bool              overlap     (fixed left, fixed top, fixed width, fixed height);
-		JJ1PlayerReaction reacted     (unsigned int ticks);
-		void              setEvent    (unsigned char gridX, unsigned char gridY);
-		void              setPosition (fixed newX, fixed newY);
-		void              setSpeed    (fixed newDx, fixed newDy);
-		bool              takeEvent   (unsigned char gridX, unsigned char gridY, unsigned int ticks);
-		bool              touchEvent  (unsigned char gridX, unsigned char gridY, unsigned int ticks, int msps);
-
-		void           send        (unsigned char* buffer);
-		void           receive     (unsigned char* buffer);
-
-		void           control     (unsigned int ticks, int msps);
-		void           move        (unsigned int ticks, int msps);
-		void           view        (unsigned int ticks, int mspf, int change);
-		void           draw        (unsigned int ticks, int change);
+		void				addItem     ();
+		void				clearEvent  (unsigned char gridX, unsigned char gridY);
+		int					countBirds  ();
+		Anim*				getAnim     ();
+		int					getEnemies  ();
+		int					getEnergy   ();
+		bool				getFacing   ();
+		int					getItems    ();
+		bool				hasGem      ();
+		bool				hit         (Player* source, unsigned int ticks);
+		void				kill        (Player* source, unsigned int ticks);
+		bool				overlap     (fixed left, fixed top, fixed width, fixed height);
+		JJ1PlayerReaction	reacted     (unsigned int ticks);
+		void				setEvent    (unsigned char gridX, unsigned char gridY);
+		void				setPosition (fixed newX, fixed newY);
+		void				setSpeed    (fixed newDx, fixed newDy);
+		bool				takeEvent   (unsigned char gridX, unsigned char gridY, unsigned int ticks);
+		bool				touchEvent  (unsigned char gridX, unsigned char gridY, unsigned int ticks, int msps);
+		void				control     (unsigned int ticks, int msps);
+		void				move        (unsigned int ticks, int msps);
+		void				view        (unsigned int ticks, int mspf, int change);
+		void				draw        (unsigned int ticks, int change);
 
 };
 

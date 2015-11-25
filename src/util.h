@@ -43,10 +43,11 @@
 // Variable
 
 /// Trigonometric function look-up table
-EXTERN fixed sinLut[1024];
+extern const fixed sinLut[1024];
 
 
 // Functions
+unsigned char nearestIndex(unsigned char r,unsigned char g,unsigned char b,unsigned short * pal,unsigned short amt);
 
 EXTERN bool               fileExists           (const char *fileName);
 EXTERN unsigned short int createShort          (unsigned char* data);
@@ -61,8 +62,11 @@ EXTERN void               log                  (const char *message);
 EXTERN void               log                  (const char *message, const char *detail);
 EXTERN void               log                  (const char *message, int number);
 EXTERN void               logError             (const char *message, const char *detail);
-EXTERN fixed              fSin                 (fixed angle);
-EXTERN fixed              fCos                 (fixed angle);
-
+//EXTERN fixed              fSin                 (fixed angle);
+//EXTERN fixed              fCos                 (fixed angle);//Replace these with macros to reduce function overhead
+//#define fSin(angle) (sinLut[angle & 1023])
+static fixed fSin(const fixed angle){return sinLut[angle & 1023];}
+//#define fCos(angle) (sinLut[(angle + 256) & 1023])
+static fixed fCos(const fixed angle){return sinLut[(angle + 256) & 1023];}
 #endif
 

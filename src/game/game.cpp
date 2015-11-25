@@ -31,17 +31,29 @@
 #include "gamemode.h"
 
 #include "io/gfx/video.h"
-#include "io/sound.h"
+//#include "io/sound.h"
 #include "jj1bonuslevel/jj1bonuslevel.h"
 #include "jj1level/jj1level.h"
 #include "jj1planet/jj1planet.h"
-#include "jj2level/jj2level.h"
+//#include "jj2level/jj2level.h"
 #include "player/player.h"
 #include "util.h"
 
 #include <string.h>
-
-
+#ifdef CASIO
+#include "strcasecmp.h"
+#include "strncasecmp.h"
+#include <fxcg/display.h>
+#include <fxcg/keyboard.h>
+#include "platforms/casio.h"
+#include <fxcg/heap.h>
+#define free sys_free
+#define malloc sys_malloc
+#endif
+inline void *operator new(size_t, void *p) throw ()
+    {
+    return p;
+    }
 /**
  * Create base game
  */
@@ -145,24 +157,30 @@ void Game::setDifficulty (int diff) {
 	return;
 
 }
-
-
+#ifndef CASIO
+void * levelIDram=0;
+#endif
+#ifdef CASIO
+extern unsigned char * SaveVramAddr;
+#endif
 /**
  * Play a level.
  *
  * @return Error code
  */
 int Game::playLevel (char* fileName, bool intro, bool checkpoint) {
-
-	bool multiplayer;
 	int ret;
-
-	multiplayer = (mode->getMode() != M_SINGLE);
-
 	if (!strncasecmp(fileName, "MACRO", 5)) {
-
+		#ifdef CASIO
+			DmaWaitNext();
+			clearLine(2);
+			PrintXY(1,2,"Game::playLevel M"-2,0x20,TEXT_COLOR_WHITE);
+			Bdisp_PutDisp_DD();
+			{int tKEY;
+			GetKey(&tKEY);}
+		#endif
 		// Load and play the level
-
+/*
 		try {
 
 			baseLevel = level = new JJ1DemoLevel(this, fileName);
@@ -177,27 +195,35 @@ int Game::playLevel (char* fileName, bool intro, bool checkpoint) {
 
 		delete level;
 		baseLevel = level = NULL;
-
+*/
 	} else if (levelType == LT_JJ1BONUS) {
-
+		#ifdef CASIO
+			drawStrL(2,"Game::playLevel 2");
+		#endif
 		JJ1BonusLevel *bonus;
+		#ifdef CASIO
+			baseLevel = bonus = new(SaveVramAddr) JJ1BonusLevel(this, fileName);
 
+		#else
 		try {
-
-			baseLevel = bonus = new JJ1BonusLevel(this, fileName, multiplayer);
+			//printf("sizeof(JJ1BonusLevel)=%d\n",sizeof(JJ1BonusLevel));
+			baseLevel = bonus = new JJ1BonusLevel(this, fileName);
 
 		} catch (int e) {
 
 			return e;
 
 		}
-
+		#endif
 		ret = bonus->play();
-
+		#ifdef CASIO
+		bonus->~JJ1BonusLevel();
+		#else
 		delete bonus;
+		#endif
 		baseLevel = NULL;
 
-	} else if (levelType == LT_JJ2) {
+	} /*else if (levelType == LT_JJ2) {
 
 		try {
 
@@ -214,31 +240,47 @@ int Game::playLevel (char* fileName, bool intro, bool checkpoint) {
 		delete jj2Level;
 		baseLevel = jj2Level = NULL;
 
-	} else {
-
-		try {
-
-			baseLevel = level = new JJ1Level(this, fileName, checkpoint, multiplayer);
-
-		} catch (int e) {
-
+	}*/else {
+		#ifdef CASIO
+			drawStrL(2,"Game::playLevel 3");
+		#endif
+		//try {
+			#ifdef CASIO
+			baseLevel = level = new(SaveVramAddr) JJ1Level(this, fileName, checkpoint);
+			#else
+			if(!levelIDram){
+				free(levelIDram);
+			}
+			levelIDram=malloc(sizeof(JJ1Level));
+			baseLevel = level = new(levelIDram) JJ1Level(this, fileName, checkpoint);
+			#endif
+		/*} catch (int e) {
+			#ifdef CASIO
+				casioQuit("baseLevel cannot be created heap full?");
+			#endif
 			return e;
 
-		}
-
+		}*/
 		if (intro) {
 
 			JJ1Planet *planet;
 			char *planetFileName = NULL;
 
 			planetFileName = createFileName(F_PLANET, level->getWorld());
-
+			void * PlanetMem=malloc(sizeof(JJ1Planet));
+			if(!PlanetMem){
+				#ifdef CASIO
+					casioQuitM("JJ1Planet");
+				#else
+					puts("Malloc error JJ1Planet");
+				#endif
+			}
 			try {
 
-				planet = new JJ1Planet(planetFileName, planetId);
+				planet = new(PlanetMem) JJ1Planet(planetFileName, planetId);
 
 			} catch (int e) {
-
+				free(PlanetMem);
 				planet = NULL;
 
 			}
@@ -246,27 +288,27 @@ int Game::playLevel (char* fileName, bool intro, bool checkpoint) {
 			delete[] planetFileName;
 
 			if (planet) {
-
-				if (planet->play() == E_QUIT) {
-
+				if (planet->play() == E_QUIT){
 					delete planet;
-					delete level;
-
+					//delete level;
+					level->~JJ1Level();//allocated differently
+					#ifndef CASIO
+					free(levelIDram);
+					#endif
 					return E_QUIT;
-
 				}
-
 				planetId = planet->getId();
-
-				delete planet;
-
+				planet->~JJ1Planet();
+				free(PlanetMem);
 			}
-
 		}
-
 		ret = level->play();
 
-		delete level;
+		//delete level;
+		level->~JJ1Level();
+		#ifndef CASIO
+		free(levelIDram);
+		#endif
 		baseLevel = level = NULL;
 
 	}
@@ -318,11 +360,9 @@ int Game::play () {
 	bool multiplayer;
 	bool checkpoint;
 	int ret;
-
 	multiplayer = (mode->getMode() != M_SINGLE);
 	checkpoint = false;
 	planetId = -1;
-
 	// Play the level(s)
 	while (true) {
 
@@ -427,7 +467,7 @@ void Game::addLevelPlayer (Player *player) {
 
 		player->createLevelPlayer(levelType, pAnims, NULL, checkX, checkY);
 
-	} else if (jj2Level) {
+	}/* else if (jj2Level) {
 
 		Anim* pAnims[JJ2PANIMS];
 		Anim* pFlippedAnims[JJ2PANIMS];
@@ -441,9 +481,5 @@ void Game::addLevelPlayer (Player *player) {
 
 		player->createLevelPlayer(levelType, pAnims, pFlippedAnims, checkX, checkY);
 
-	}
-
-	return;
-
+	}*/
 }
-

@@ -28,9 +28,9 @@
 
 
 #include "OpenJazz.h"
-
+#ifndef CASIO
 #include <SDL/SDL.h>
-
+#endif
 
 // Constants
 
@@ -58,7 +58,7 @@ class PaletteEffect {
 		PaletteEffect          (PaletteEffect* nextPE);
 		virtual ~PaletteEffect ();
 
-		virtual void apply (SDL_Color* shownPalette, bool direct, int mspf);
+		virtual void apply (unsigned short* shownPalette, bool direct, int mspf);
 
 };
 
@@ -72,7 +72,7 @@ class WhiteInPaletteEffect : public PaletteEffect {
 	public:
 		WhiteInPaletteEffect (int newDuration, PaletteEffect* nextPE);
 
-		void apply (SDL_Color* shownPalette, bool direct, int mspf);
+		void apply (unsigned short* shownPalette, bool direct, int mspf);
 
 };
 
@@ -86,7 +86,7 @@ class FadeInPaletteEffect : public PaletteEffect {
 	public:
 		FadeInPaletteEffect (int newDuration, PaletteEffect* nextPE);
 
-		void apply (SDL_Color* shownPalette, bool direct, int mspf);
+		void apply (unsigned short* shownPalette, bool direct, int mspf);
 
 };
 
@@ -100,7 +100,7 @@ class WhiteOutPaletteEffect : public PaletteEffect {
 	public:
 		WhiteOutPaletteEffect (int newDuration, PaletteEffect* nextPE);
 
-		void apply  (SDL_Color* shownPalette, bool direct, int mspf);
+		void apply  (unsigned short* shownPalette, bool direct, int mspf);
 
 };
 
@@ -114,7 +114,7 @@ class FadeOutPaletteEffect : public PaletteEffect {
 	public:
 		FadeOutPaletteEffect (int newDuration, PaletteEffect* nextPE);
 
-		void apply (SDL_Color* shownPalette, bool direct, int mspf);
+		void apply (unsigned short* shownPalette, bool direct, int mspf);
 
 };
 
@@ -129,7 +129,7 @@ class FlashPaletteEffect : public PaletteEffect {
 	public:
 		FlashPaletteEffect (unsigned char newRed, unsigned char newGreen, unsigned char newBlue, int newDuration, PaletteEffect* nextPE);
 
-		void apply (SDL_Color* shownPalette, bool direct, int mspf);
+		void apply (unsigned short* shownPalette, bool direct, int mspf);
 
 };
 
@@ -145,7 +145,7 @@ class RotatePaletteEffect : public PaletteEffect {
 	public:
 		RotatePaletteEffect (unsigned char newFirst, int newAmount, fixed newSpeed, PaletteEffect* nextPE);
 
-		void apply (SDL_Color* shownPalette, bool direct, int mspf);
+		void apply (unsigned short* shownPalette, bool direct, int mspf);
 
 };
 
@@ -153,15 +153,15 @@ class RotatePaletteEffect : public PaletteEffect {
 class SkyPaletteEffect : public PaletteEffect {
 
 	private:
-		SDL_Color*    skyPalette;
+		unsigned short*    skyPalette;
 		unsigned char first;      ///< The first palette index affected
 		int           amount;     ///< The number of (consecutive) palette indices affected
 		fixed         speed;      ///< Relative Y speed - as in Jazz 2
 
 	public:
-		SkyPaletteEffect (unsigned char newFirst, int newAmount, fixed newSpeed, SDL_Color* newSkyPalette, PaletteEffect* nextPE);
+		SkyPaletteEffect (unsigned char newFirst, int newAmount, fixed newSpeed, unsigned short* newSkyPalette, PaletteEffect* nextPE);
 
-		void apply (SDL_Color* shownPalette, bool direct, int mspf);
+		void apply (unsigned short* shownPalette, bool direct, int mspf);
 
 };
 
@@ -176,7 +176,7 @@ class P2DPaletteEffect : public PaletteEffect {
 	public:
 		P2DPaletteEffect (unsigned char newFirst, int newAmount, fixed newSpeed, PaletteEffect* nextPE);
 
-		void apply (SDL_Color* shownPalette, bool direct, int mspf);
+		void apply (unsigned short* shownPalette, bool direct, int mspf);
 
 };
 
@@ -191,7 +191,7 @@ class P1DPaletteEffect : public PaletteEffect {
 	public:
 		P1DPaletteEffect (unsigned char newFirst, int newAmount, fixed newSpeed, PaletteEffect* nextPE);
 
-		void apply (SDL_Color* shownPalette, bool direct, int mspf);
+		void apply (unsigned short* shownPalette, bool direct, int mspf);
 
 };
 
@@ -204,7 +204,7 @@ class WaterPaletteEffect : public PaletteEffect {
 	public:
 		WaterPaletteEffect (fixed newDepth, PaletteEffect* nextPE);
 
-		void apply (SDL_Color* shownPalette, bool direct, int mspf);
+		void apply (unsigned short* shownPalette, bool direct, int mspf);
 
 };
 

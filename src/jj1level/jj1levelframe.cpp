@@ -42,7 +42,7 @@
 #include "io/gfx/font.h"
 #include "io/gfx/video.h"
 #include "util.h"
-
+#include "surface.h"
 
 /**
  * Level iteration.
@@ -148,16 +148,8 @@ int JJ1Level::step () {
 	// Check if time has run out
 	if (ticks > endTime) {
 
-		if (multiplayer) {
-
-			game->getMode()->outOfTime();
-
-		} else {
-
 			if ((game->getDifficulty() >= 2) && (stage == LS_NORMAL))
 				localPlayer->getJJ1LevelPlayer()->kill(NULL, endTime);
-
-		}
 
 	}
 
@@ -175,7 +167,7 @@ int JJ1Level::step () {
 
 		if (players[x].getJJ1LevelPlayer()->reacted(ticks) == PR_KILLED) {
 
-			if (!multiplayer) return LOST;
+			return LOST;
 
 			game->resetPlayer(players + x);
 
@@ -196,16 +188,15 @@ int JJ1Level::step () {
 void JJ1Level::draw () {
 
 	GridElement *ge;
-	SDL_Rect src, dst;
+	//SDL_Rect dst;
+	short src[4];//x y w h
 	int viewH;
 	int vX, vY;
 	int x, y, bgScale;
 	unsigned int change;
 
-
 	// Calculate change since last step
 	change = getTimeChange();
-
 
 	// Calculate viewport
 	if (game && (stage == LS_END)) game->view(paused? 0: ((ticks - prevTicks) * 160));
@@ -222,19 +213,19 @@ void JJ1Level::draw () {
 	if (viewY < 0) viewY = 0;
 
 	// Use the viewport
-	dst.x = 0;
+	/*dst.x = 0;
 	dst.y = 0;
+	
+	dst.w = canvasW;
+	dst.h = viewH;*/
+	//SDL_SetClipRect(canvas, &dst);
 	vX = FTOI(viewX);
 	vY = FTOI(viewY);
-	dst.w = canvasW;
-	dst.h = viewH;
-	SDL_SetClipRect(canvas, &dst);
-
 
 	// Set tile drawing dimensions
-	src.w = TTOI(1);
-	src.h = TTOI(1);
-	src.x = 0;
+	src[2] = TTOI(1);//each tile is 32 pixels
+	src[3] = TTOI(1);
+	src[0] = 0;
 
 
 	// If there is a sky, draw it
@@ -251,11 +242,11 @@ void JJ1Level::draw () {
 		// Show sun / moon / etc.
 		if (skyOrb) {
 
-			dst.x = (canvasW * 4) / 5;
-			dst.y = ((canvasH - 33) * 3) / 25;
-			src.y = TTOI(skyOrb);
-			SDL_BlitSurface(tileSet, &src, canvas, &dst);
-
+			//dst.x = (canvasW * 4) / 5;
+			//dst.y = ((canvasH - 33) * 3) / 25;
+			src[1] = TTOI(skyOrb);
+			//SDL_BlitSurface(tileSet, &src, canvas, &dst);
+			blitPartToCanvas(&tileSet,(canvasW * 4) / 5,((canvasH - 33) * 3) / 25,src);
 		}
 
 	} else {
@@ -294,11 +285,11 @@ void JJ1Level::draw () {
 			if ((eventSet[ge->event].movement != 38) &&
 			    ((ge->event < 124) || (ge->event > 125))  ) {
 
-				dst.x = TTOI(x) - (vX & 31);
-				dst.y = TTOI(y) - (vY & 31);
-				src.y = TTOI(ge->tile);
-				SDL_BlitSurface(tileSet, &src, canvas, &dst);
-
+				//dst.x = TTOI(x) - (vX & 31);
+				//dst.y = TTOI(y) - (vY & 31);
+				src[1] = TTOI(ge->tile);
+				//SDL_BlitSurface(tileSet, &src, canvas, &dst);
+				blitPartToCanvas(&tileSet,TTOI(x) - (vX & 31),TTOI(y) - (vY & 31),src);
 			}
 
 		}
@@ -333,23 +324,23 @@ void JJ1Level::draw () {
 			// If this is an "animated" foreground tile, draw it
 			if (ge->event == 123) {
 
-				dst.x = TTOI(x) - (vX & 31);
-				dst.y = TTOI(y) - (vY & 31);
-				if (ticks & 64) src.y = TTOI(eventSet[ge->event].multiB);
-				else src.y = TTOI(eventSet[ge->event].multiA);
-				SDL_BlitSurface(tileSet, &src, canvas, &dst);
-
+				//dst.x = TTOI(x) - (vX & 31);
+				//dst.y = TTOI(y) - (vY & 31);
+				if (ticks & 64) src[1] = TTOI(eventSet[ge->event].multiB);
+				else src[1] = TTOI(eventSet[ge->event].multiA);
+				//SDL_BlitSurface(tileSet, &src, canvas, &dst);
+				blitPartToCanvas(&tileSet,TTOI(x) - (vX & 31),TTOI(y) - (vY & 31),src);
 			}
 
 			// If this is a foreground tile, draw it
 			if ((ge->event == 124) || (ge->event == 125) ||
 				(eventSet[ge->event].movement == 38)   ) {
 
-				dst.x = TTOI(x) - (vX & 31);
-				dst.y = TTOI(y) - (vY & 31);
-				src.y = TTOI(ge->tile);
-				SDL_BlitSurface(tileSet, &src, canvas, &dst);
-
+				//dst.x = TTOI(x) - (vX & 31);
+				//dst.y = TTOI(y) - (vY & 31);
+				src[1] = TTOI(ge->tile);
+				//SDL_BlitSurface(tileSet, &src, canvas, &dst);
+				blitPartToCanvas(&tileSet,TTOI(x) - (vX & 31),TTOI(y) - (vY & 31),src);
 			}
 
 		}
@@ -367,21 +358,21 @@ void JJ1Level::draw () {
 
 
 	// If this is a competitive game, draw the score
-	if (multiplayer) game->getMode()->drawScore(font);
-
 
 	// Show panel
 
-	SDL_SetClipRect(canvas, NULL);
+	//SDL_SetClipRect(canvas, NULL);
 
 	// Change the ammo type display on the panel
-	dst.x = 250;
-	dst.y = 2;
-	SDL_BlitSurface(panelAmmo[localPlayer->getAmmo(false) + 1], NULL, panel, &dst);
-
-	dst.x = 0;
-	dst.y = canvasH - 33;
-	SDL_BlitSurface(panel, NULL, canvas, &dst);
+	//dst.x = 250;
+	//dst.y = 2;
+	//SDL_BlitSurface(panelAmmo[localPlayer->getAmmo(false) + 1], NULL, panel, &dst);
+	//MiniSurfToMiniSurf(&panelAmmo[localPlayer->getAmmo(false)+1],&panel,250,2);
+	//dst.x = 0;
+	//dst.y = canvasH - 33;
+	//SDL_BlitSurface(panel, NULL, canvas, &dst);
+	blitToCanvas(&panel,0,canvasH-33);
+	blitToCanvas(&panelAmmo[localPlayer->getAmmo(false)+1],250,canvasH-31);
 	drawRect(0, canvasH - 1, SW, 1, LEVEL_BLACK);
 
 
@@ -428,7 +419,8 @@ void JJ1Level::draw () {
 
 	// Draw the health bar
 
-	dst.x = 20;
+	//dst.x = 20;
+	int dstx=20;
 	x = localPlayer->getJJ1LevelPlayer()->getEnergy();
 	y = (ticks - prevTicks) * 40;
 
@@ -443,10 +435,10 @@ void JJ1Level::draw () {
 		else energyBar -= y;
 
 	}
-
+	int dstw=canvasW;
 	if (energyBar > F1) {
 
-		dst.w = FTOI(energyBar) - 1;
+		dstw = FTOI(energyBar) - 1;
 
 		// Choose energy bar colour
 		if (x == 4) x = 24;
@@ -455,16 +447,16 @@ void JJ1Level::draw () {
 		else if (x <= 1) x = 32 + (((ticks / 75) * 4) & 15);
 
 		// Draw energy bar
-		drawRect(dst.x, canvasH - 13, dst.w, 7, x);
+		drawRect(20, canvasH - 13, dstw, 7, x);
 
-		dst.x += dst.w;
-		dst.w = 64 - dst.w;
+		dstx += dstw;
+		dstw = 64 - dstw;
 
-	} else dst.w = 64;
+	} else dstw = 64;
 
 
 	// Fill in remaining energy bar space with black
-	drawRect(dst.x, canvasH - 13, dst.w, 7, LEVEL_BLACK);
+	drawRect(dstx, canvasH - 13, dstw, 7, LEVEL_BLACK);
 
 
 	return;

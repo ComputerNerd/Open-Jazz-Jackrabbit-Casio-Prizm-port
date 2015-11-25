@@ -36,7 +36,12 @@
 #include "util.h"
 
 #include <string.h>
-
+#ifdef CASIO
+	#include <alloca.h>
+	#include <fxcg/display.h>
+	#include <fxcg/misc.h>
+	#include "platforms/casio.h"
+#endif
 
 /**
  * Load a short from a buffer and advance the pointer past it.
@@ -48,12 +53,18 @@
 unsigned short int JJ1Scene::loadShortMem (unsigned char** data) {
 
 	unsigned short int val;
-
+	
+	#ifdef CASIO
+	val = ((unsigned short)(**data)) << 8;
+	(*data)++;
+	val |= **data;
+	(*data)++;
+	#else
 	val = **data;
 	(*data)++;
-	val += ((unsigned short)(**data)) << 8;
+	val |= ((unsigned short)(**data)) << 8;
 	(*data)++;
-
+	#endif
 	return val;
 
 }
@@ -299,25 +310,28 @@ void JJ1Scene::loadAni (File *f, int dataIndex) {
 	while (type != EPlayListAniHeader) {
 
 		type = f->loadShort();
-
+		#ifdef CASIO
+		char tBufs[16];
+		itoa(type,(unsigned char *)tBufs);
+		drawStrL(6,tBufs);
+		#endif
 		if (type == ESoundListAniHeader) { // SL
-
 			/*unsigned short int offset =*/ f->loadShort();
 			animations->noSounds = f->loadChar();
-
 			for(loop = 0;loop<animations->noSounds;loop++) {
 
-				char* soundName = f->loadString();
-				LOG("Soundname ", soundName);
-				strcpy(animations->soundNames[loop], soundName);
-				delete[] soundName;
+				//char* soundName = f->loadString();
+				//LOG("Soundname ", soundName);
+				//strcpy(animations->soundNames[loop], soundName);
+				//delete[] soundName;
+				f->skipString();
 
 			}
 
 		} else if (type == EPlayListAniHeader) {// PL
-			int pos = f->tell();
+			int pos;
 			int nextPos = f->tell();
-			LOG("PL Read position", pos);
+			//LOG("PL Read position", pos);
 			f->loadShort(); // Length
 
 			palettes = new JJ1ScenePalette(palettes);
@@ -342,7 +356,10 @@ void JJ1Scene::loadAni (File *f, int dataIndex) {
 				nextPos = f->tell();
 				// next pos is intial position + size and four bytes header
 				nextPos += size;
-
+				#ifdef CASIO
+				itoa(value,(unsigned char *)tBufs);
+				drawStrL(7,tBufs);
+				#endif
 				switch (value) {
 
 					case E_EHeader: // END MARKER
@@ -357,8 +374,11 @@ void JJ1Scene::loadAni (File *f, int dataIndex) {
 						LOG("PL 11 Background Type", 0);
 						f->seek(-2, false);
 
-						animations->background = f->loadSurface(SW, SH);
-
+						//animations->background = f->loadSurface(SW, SH);//calls loadRle
+						if(animations->bgidram!=INVALID_OBJ)
+							freeobj(animations->bgidram);
+						addobj(SW*SH,&animations->bgidram);
+						f->loadMiniSurface(SW,SH,(unsigned char *)objs[animations->bgidram].ptr,&animations->background);
 						// Use the most recently loaded palette
 						video.setPalette(palettes->palette);
 
@@ -366,15 +386,27 @@ void JJ1Scene::loadAni (File *f, int dataIndex) {
 
 					case E1LAniHeader: {
 						LOG("PL 1L Background Type", 0);
-						unsigned char* pixels;
-						pixels = new unsigned char[SW* SH];
-						memset(pixels, 0, SW*SH);
-						unsigned char* frameData;
-						frameData = f->loadBlock(size);
-						loadCompactedMem(size, frameData, pixels);
-						delete[] frameData;
-						animations->background = createSurface(pixels, SW, SH);
-						delete[] pixels;
+						//unsigned char* pixels=(unsigned char *)alloca(SW*SH);
+						if(animations->bgidram!=INVALID_OBJ)
+							freeobj(animations->bgidram);
+						addobj(SW*SH,&animations->bgidram);
+						//pixels = new unsigned char[SW* SH];
+						memset(objs[animations->bgidram].ptr, 0, SW*SH);
+						unsigned char* frameData=(unsigned char*)alloca(size);
+						//frameData = f->loadBlock(size);
+						f->loadBlock(size,frameData);
+						loadCompactedMem(size, frameData,(unsigned char *)objs[animations->bgidram].ptr);
+						//delete[] frameData;
+						//animations->background = createSurface(pixels, SW, SH);
+						animations->background.pix=(unsigned char*)objs[animations->bgidram].ptr;
+						animations->background.flags=0;
+						//animations->background.start=0;
+						//animations->background.length=256;
+						animations->background.w=SW;
+						animations->background.h=SH;
+						//animations->background.palette=(unsigned char *)palIncD;
+						
+						//delete[] pixels;
 						// Use the most recently loaded palette
 						video.setPalette(palettes->palette);
 						}
@@ -382,7 +414,10 @@ void JJ1Scene::loadAni (File *f, int dataIndex) {
 
 					case EFFAniHeader:
 						{
-						unsigned char* blockData = f->loadBlock(size);
+						#ifndef CASIO
+						printf("EFFAniHeader %d\n",size);
+						#endif
+						unsigned char * blockData=f->loadBlock(size);
 						animations->addFrame(EFFAniHeader, blockData, size);
 						}
 						break;
@@ -398,13 +433,18 @@ void JJ1Scene::loadAni (File *f, int dataIndex) {
 
 					case ERCAniHeader:
 						{
-						unsigned char* blockData = f->loadBlock(size);
+						#ifndef CASIO
+							printf("ERCAniHeader %d\n",size);
+						#endif
+						unsigned char* blockData=f->loadBlock(size);
 						animations->addFrame(ERCAniHeader, blockData, size);
 						}break;
 					case ESquareAniHeader: // Full screen animation frame, that does n't clear the screen first.
-
 						{
-							unsigned char* blockData = f->loadBlock(size);
+							#ifndef CASIO
+							printf("ESquareAniHeader %d\n",size);
+							#endif
+							unsigned char * blockData=f->loadBlock(size);
 							animations->addFrame(ESquareAniHeader, blockData, size);
 						}
 
@@ -413,8 +453,8 @@ void JJ1Scene::loadAni (File *f, int dataIndex) {
 					case ESTAniHeader: // Sound item
 
 						{
-							unsigned char soundIndex = f->loadChar();
-							animations->lastFrame->soundId = soundIndex;
+							/*unsigned char soundIndex = */f->loadChar();//skip sound
+							//animations->lastFrame->soundId = soundIndex;
 							LOG("PL Audio tag with index", soundIndex);
 							LOGRESULT("PL Audio tag play at ", f->loadChar());
 							LOGRESULT("PL Audio tag play offset ", f->loadChar());
@@ -462,11 +502,11 @@ void JJ1Scene::loadAni (File *f, int dataIndex) {
 			LOG("PL Parsed through number of items skipping 0 items", items);
 			pos = f->tell();
 			LOG("PL Read position after parsing anim blocks", pos);
-
 		}
-
 	}
-
+	#ifdef CASIO
+		drawStrL(7,"Done");
+	#endif
 }
 
 
@@ -475,7 +515,7 @@ void JJ1Scene::loadAni (File *f, int dataIndex) {
  *
  * @param f File from which to load the data
  */
-void JJ1Scene::loadData (File *f) {
+void JJ1Scene::loadData(File *f) {
 
 	int loop;
 
@@ -517,7 +557,12 @@ void JJ1Scene::loadData (File *f) {
 
 						f->seek(-2, false);
 						images = new JJ1SceneImage(images);
-						images->image = f->loadSurface(width, height);
+						//images->image = f->loadSurface(width, height);
+						if(images->ramid!=INVALID_OBJ){
+							freeobj(images->ramid);
+						}
+						addobj(width*height,&images->ramid);
+						f->loadMiniSurface(width,height,(unsigned char *)objs[images->ramid].ptr,&images->image);
 						images->id = loop;
 
 					}
@@ -593,8 +638,8 @@ void JJ1Scene::loadScripts (File *f) {
 						}break;
 					case ESceneStopMusic:
 						{
-						pages[loop].stopMusic = 1;
-						LOG("ESceneStopMusic", 1);
+						//pages[loop].stopMusic = 1;
+						//LOG("ESceneStopMusic", 1);
 						}break;
 					case ESceneAnimation:
 						{
@@ -642,8 +687,8 @@ void JJ1Scene::loadScripts (File *f) {
 					case ESceneMusic:
 
 						// Music file name
-						pages[loop].musicFile = f->loadString();
-						LOG("ESceneMusic", pages[loop].musicFile);
+						//pages[loop].musicFile = f->loadString();
+						//LOG("ESceneMusic", pages[loop].musicFile);
 
 						break;
 

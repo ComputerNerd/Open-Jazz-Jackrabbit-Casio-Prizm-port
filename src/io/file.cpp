@@ -33,9 +33,16 @@
 #include "util.h"
 
 #include <string.h>
-#include <zlib.h>
-
-
+//#include <zlib.h>
+#include "surface.h"
+#ifdef CASIO
+	#include "platforms/casio.h"
+	#include <fxcg/file.h>
+	#include <alloca.h>
+	#include <fxcg/display.h>
+	#include <fxcg/keyboard.h>
+	#include <fxcg/misc.h>
+#endif
 /**
  * Try opening a file from the available paths
  *
@@ -43,7 +50,11 @@
  * @param write Whether or not the file can be written to
  */
 File::File (const char* name, bool write) {
-
+	#ifdef CASIO
+	file=-1;
+	#else
+	file=0;
+	#endif
 	Path* path;
 
 	path = firstPath;
@@ -54,11 +65,10 @@ File::File (const char* name, bool write) {
 		path = path->next;
 
 	}
-
+	#ifndef CASIO
 	log("Could not open file", name);
-
+	#endif
 	throw E_FILE;
-
 }
 
 
@@ -66,20 +76,20 @@ File::File (const char* name, bool write) {
  * Delete the file object.
  */
 File::~File () {
-
-	fclose(file);
-
+#ifdef CASIO
+	if(file>=0)
+		Bfile_CloseFile_OS(file);
+#else
+	if(file>0)
+		fclose(file);
+#endif
 #ifdef VERBOSE
 	log("Closed file", filePath);
 #endif
-
-	delete[] filePath;
-
+	if(filePath)
+		delete[] filePath;
 	return;
-
 }
-
-
 /**
  * Try opening a file from the given path
  *
@@ -88,47 +98,49 @@ File::~File () {
  * @param write Whether or not the file can be written to
  */
 bool File::open (const char* path, const char* name, bool write) {
-
-#if defined(UPPERCASE_FILENAMES) || defined(LOWERCASE_FILENAMES)
-	int count;
-#endif
-
+	if(write){
+		#ifdef CASIO
+			casioQuit("No write files");
+		#else
+			puts("No write files");
+			exit(-1);
+		#endif
+		return false;
+	}
 	// Create the file path for the given directory
 	filePath = createString(path, name);
-
-#ifdef UPPERCASE_FILENAMES
-	for (count = strlen(path); filePath[count]; count++) {
-
-		if ((filePath[count] >= 97) && (filePath[count] <= 122)) filePath[count] -= 32;
-
-	}
-#endif
-
-#ifdef LOWERCASE_FILENAMES
-	for (count = strlen(path); filePath[count]; count++) {
-
-		if ((filePath[count] >= 65) && (filePath[count] <= 90)) filePath[count] += 32;
-
-	}
-#endif
-
 	// Open the file from the path
-	file = fopen(filePath, write ? "wb": "rb");
-
-	if (file) {
-
+	#ifdef CASIO
+		DmaWaitNext();
+		unsigned int flen=strlen(filePath);
+		unsigned short * strC=(unsigned short *)alloca(flen*2+2);
+		Bfile_StrToName_ncpy(strC,filePath,flen+1);
+		file=Bfile_OpenFile_OS(strC,0,0);
+	#else
+		file = fopen(filePath,"rb");
+	#endif
+	#ifdef CASIO
+	if (file>=0){
+	#else
+	if (file){
+	#endif
 #ifdef VERBOSE
 		log("Opened file", filePath);
 #endif
-
 		return true;
-
 	}
-
+	#ifdef CASIO
+		drawStrL(4,"Cannot open:");
+		drawStrL(5,filePath);
+		char buf[16];
+		itoa(file,(unsigned char *)buf);
+		drawStrL(6,buf);
+	#else
+		printf("Cannot open %s\n",filePath);
+	#endif
 	delete[] filePath;
-
+	filePath=0;
 	return false;
-
 }
 
 
@@ -138,19 +150,16 @@ bool File::open (const char* path, const char* name, bool write) {
  * @return The size of the file
  */
 int File::getSize () {
-
+#ifdef CASIO
+	return Bfile_GetFileSize_OS(file);
+#else
 	int pos, size;
-
 	pos = ftell(file);
-
 	fseek(file, 0, SEEK_END);
-
 	size = ftell(file);
-
 	fseek(file, pos, SEEK_SET);
-
 	return size;
-
+#endif
 }
 
 
@@ -160,9 +169,11 @@ int File::getSize () {
  * @return The current location
  */
 int File::tell () {
-
-	return ftell(file);
-
+	#ifdef CASIO
+		return Bfile_TellFile_OS(file);
+	#else
+		return ftell(file);
+	#endif
 }
 
 
@@ -173,11 +184,14 @@ int File::tell () {
  * @param reset Whether to offset from the current location or the start of the file
  */
 void File::seek (int offset, bool reset) {
-
-	fseek(file, offset, reset ? SEEK_SET: SEEK_CUR);
-
-	return;
-
+	#ifdef CASIO
+		if(reset)
+			Bfile_SeekFile_OS(file,offset);
+		else
+			Bfile_SeekFile_OS(file,Bfile_TellFile_OS(file)+offset);
+	#else
+		fseek(file, offset, reset ? SEEK_SET: SEEK_CUR);
+	#endif
 }
 
 
@@ -187,35 +201,38 @@ void File::seek (int offset, bool reset) {
  * @return The value read
  */
 unsigned char File::loadChar () {
-
-	return fgetc(file);
-
+	#ifdef CASIO
+		unsigned char temp;
+		Bfile_ReadFile_OS(file,&temp,1,-1);
+		return temp;
+	#else
+		return fgetc(file);
+	#endif
 }
 
 
 void File::storeChar (unsigned char val) {
-
+	#ifndef CASIO
 	fputc(val, file);
-
-	return;
-
+	#endif
 }
-
 
 /**
  * Load an unsigned short int from the file.
  *
  * @return The value read
  */
-unsigned short int File::loadShort () {
+unsigned short int File::loadShort(){
 
-	unsigned short int val;
-
-	val = fgetc(file);
-	val += fgetc(file) << 8;
-
+	unsigned short val;
+	#ifdef CASIO
+		Bfile_ReadFile_OS(file,&val,2,-1);
+		val=__builtin_bswap16(val);
+	#else
+		val = fgetc(file);
+		val |= fgetc(file) << 8;
+	#endif
 	return val;
-
 }
 
 
@@ -231,9 +248,11 @@ unsigned short int File::loadShort (unsigned short int max) {
 	val = loadShort();
 
 	if (val > max) {
-
-		logError("Oversized value in file", filePath);
-
+		#ifdef CASIO
+			drawStrL(1,"Oversized value");
+		#else
+			logError("Oversized value in file", filePath);
+		#endif
 		return max;
 
 	}
@@ -243,13 +262,11 @@ unsigned short int File::loadShort (unsigned short int max) {
 }
 
 
-void File::storeShort (unsigned short int val) {
-
-	fputc(val & 255, file);
-	fputc(val >> 8, file);
-
-	return;
-
+void File::storeShort(unsigned short int val){
+	#ifndef CASIO
+		fputc(val & 255, file);
+		fputc(val >> 8, file);
+	#endif
 }
 
 
@@ -259,32 +276,43 @@ void File::storeShort (unsigned short int val) {
  * @return The value read
  */
 signed long int File::loadInt () {
-
 	unsigned long int val;
-
-	val = fgetc(file);
-	val += fgetc(file) << 8;
-	val += fgetc(file) << 16;
-	val += fgetc(file) << 24;
-
+	#ifdef CASIO
+		/*val = fgetc(file)<<24;
+		val |= fgetc(file)<<16;
+		val |= fgetc(file)<<8;
+		val |= fgetc(file);*/
+		/*unsigned char * v=(unsigned char *)&val;
+		Bfile_ReadFile_OS(file,v+3,1,-1);
+		Bfile_ReadFile_OS(file,v+2,1,-1);
+		Bfile_ReadFile_OS(file,v+1,1,-1);
+		Bfile_ReadFile_OS(file,v,1,-1);*/
+		Bfile_ReadFile_OS(file,&val,4,-1);
+		/*val = ((val>>24)&0xff) | // move byte 3 to byte 0
+                    ((val<<8)&0xff0000) | // move byte 1 to byte 2
+                    ((val>>8)&0xff00) | // move byte 2 to byte 1
+                    ((val<<24)&0xff000000); // byte 0 to byte 3*/
+		val=__builtin_bswap32(val);//Make sure you are using gcc 4.8 or later or other compiler which supports such features this should use the swap instruction
+	#else
+		val = fgetc(file);
+		val |= fgetc(file) << 8;
+		val |= fgetc(file) << 16;
+		val |= fgetc(file) << 24;
+	#endif
 	return *((signed long int *)&val);
-
 }
 
 
 void File::storeInt (signed long int val) {
-
 	unsigned long int uval;
-
 	uval = *((unsigned long int *)&val);
-
-	fputc(uval & 255, file);
-	fputc((uval >> 8) & 255, file);
-	fputc((uval >> 16) & 255, file);
-	fputc(uval >> 24, file);
-
+	#ifndef CASIO
+		fputc(uval & 255, file);
+		fputc((uval >> 8) & 255, file);
+		fputc((uval >> 16) & 255, file);
+		fputc(uval >> 24, file);
+	#endif
 	return;
-
 }
 
 
@@ -296,16 +324,19 @@ void File::storeInt (signed long int val) {
  * @return Buffer containing the block of data
  */
 unsigned char * File::loadBlock (int length) {
-
 	unsigned char *buffer;
-
 	buffer = new unsigned char[length];
-
-	fread(buffer, 1, length, file);
-
+	loadBlock(length,buffer);
 	return buffer;
-
 }
+void File::loadBlock(int length,unsigned char * buf){
+	#ifdef CASIO
+		Bfile_ReadFile_OS(file,buf,length,-1);
+	#else
+		fread(buf, 1, length, file);
+	#endif
+}
+
 
 
 /**
@@ -315,95 +346,140 @@ unsigned char * File::loadBlock (int length) {
  *
  * @return Buffer containing the uncompressed data
  */
-unsigned char* File::loadRLE (int length) {
+void File::loadRLE (int length,unsigned char* buffer) {
 
-	unsigned char* buffer;
-	int rle, pos, byte, count, next;
-
+	int pos, count, next;
+	unsigned char byte,rle;
 	// Determine the offset that follows the block
-	next = fgetc(file);
-	next += fgetc(file) << 8;
-	next += ftell(file);
-
-	buffer = new unsigned char[length];
-
+	#ifdef CASIO
+		{unsigned short tmp;
+		Bfile_ReadFile_OS(file,&tmp,2,-1);
+		next=__builtin_bswap16(tmp);}
+	#else
+		next = fgetc(file);
+		next |= fgetc(file) << 8;
+	#endif
+	#ifdef CASIO
+		next+=Bfile_TellFile_OS(file);
+	#else
+		next += ftell(file);
+	#endif
 	pos = 0;
-
+	/*#ifdef CASIO
+	itoa(next,(unsigned char *)bufP);
+	clearLine(5);
+	PrintXY(1,5,bufP-2,0x20,TEXT_COLOR_WHITE);
+	Bdisp_PutDisp_DD();
+	#else
+		printf("next: %d length: %d\n",next,length);
+	#endif*/
 	while (pos < length) {
-
-		rle = fgetc(file);
-
+		#ifdef CASIO
+			Bfile_ReadFile_OS(file,&rle,1,-1);
+			//show percentage
+			/*itoa(pos,(unsigned char *)bufP);
+			clearLine(7);
+			PrintXY(1,7,bufP-2,0x20,TEXT_COLOR_WHITE);
+			Bdisp_PutDisp_DD();*/
+		#else
+			rle = fgetc(file);
+		#endif
 		if (rle & 128) {
-
-			byte = fgetc(file);
-
+			#ifdef CASIO
+				Bfile_ReadFile_OS(file,&byte,1,-1);
+			#else
+				byte = fgetc(file);
+			#endif
 			for (count = 0; count < (rle & 127); count++) {
-
 				buffer[pos++] = byte;
 				if (pos >= length) break;
-
 			}
-
+			/*#ifdef CASIO
+				itoa(pos,(unsigned char *)bufP);
+				clearLine(4);
+				PrintXY(1,4,bufP-2,0x20,TEXT_COLOR_RED);
+				Bdisp_PutDisp_DD();
+			#endif*/
 		} else if (rle) {
 
-			for (count = 0; count < rle; count++) {
-
-				buffer[pos++] = fgetc(file);
+			/*for (count = 0; count < rle; count++) {
+				#ifdef CASIO
+					Bfile_ReadFile_OS(file,&buffer[pos++],1,-1);
+				#else
+					buffer[pos++] = fgetc(file);
+				#endif
 				if (pos >= length) break;
 
+			}*/
+
+			if((pos+rle)>=length){
+				//read for length then break
+				if((length-pos)>0){
+				#ifdef CASIO
+					Bfile_ReadFile_OS(file,&buffer[pos],(length-pos),-1);
+				#else
+					if(fread(&buffer[pos],1,(length-pos),file)!=(length-pos)){
+						puts("Errors byte");//punny yes?
+					}
+				#endif
+				pos+=(length-pos);
+				}
+			}else{
+				#ifdef CASIO
+					Bfile_ReadFile_OS(file,&buffer[pos],rle,-1);
+				#else
+					if(fread(&buffer[pos],1,rle,file)!=rle){
+						puts("Errors byte");
+					}
+				#endif
+				pos+=rle;
+				/*#ifdef CASIO
+					itoa(pos,(unsigned char *)bufP);
+					clearLine(4);
+					PrintXY(1,4,bufP-2,0x20,TEXT_COLOR_BLUE);
+					Bdisp_PutDisp_DD();
+				#endif*/
 			}
-
-		} else buffer[pos++] = fgetc(file);
-
+		} else{
+			#ifdef CASIO
+				Bfile_ReadFile_OS(file,&buffer[pos++],1,-1);
+				/*itoa(pos,(unsigned char *)bufP);
+				clearLine(4);
+				PrintXY(1,4,bufP-2,0x20,TEXT_COLOR_GREEN);
+				Bdisp_PutDisp_DD();*/
+			#else
+				buffer[pos++] = fgetc(file);
+			#endif
+		}
 	}
-
-	fseek(file, next, SEEK_SET);
-
-	return buffer;
-
+	#ifdef CASIO
+		Bfile_SeekFile_OS(file,next);
+	#else
+		fseek(file, next, SEEK_SET);
+	#endif
 }
-
+unsigned char* File::loadRLE (int length) {
+	unsigned char * buffer = new unsigned char[length];
+	loadRLE(length,buffer);
+	return buffer;
+}
 
 /**
  * Skip past a block of RLE compressed data in the file.
  */
-void File::skipRLE () {
-
-	int next;
-
-	next = fgetc(file);
-	next += fgetc(file) << 8;
-
-	fseek(file, next, SEEK_CUR);
-
-	return;
-
-}
-
-
-/**
- * Load a block of LZ compressed data from the file.
- *
- * @param compressedLength The length of the compressed block
- * @param length The length of the uncompressed block
- *
- * @return Buffer containing the uncompressed data
- */
-unsigned char* File::loadLZ (int compressedLength, int length) {
-
-	unsigned char* compressedBuffer;
-	unsigned char* buffer;
-
-	compressedBuffer = loadBlock(compressedLength);
-
-	buffer = new unsigned char[length];
-
-	uncompress(buffer, (unsigned long int *)&length, compressedBuffer, compressedLength);
-
-	delete[] compressedBuffer;
-
-	return buffer;
-
+void File::skipRLE(){
+	unsigned short next;
+	#ifdef CASIO
+		//unsigned char * n=(unsigned char *)&next;
+		//Bfile_ReadFile_OS(file,n+1,1,-1);
+		//Bfile_ReadFile_OS(file,n,1,-1);
+		Bfile_ReadFile_OS(file,&next,2,-1);
+		next=__builtin_bswap16(next);
+	#else
+		next = fgetc(file);
+		next |= fgetc(file) << 8;
+	#endif
+	seek(next,false);
 }
 
 
@@ -413,73 +489,108 @@ unsigned char* File::loadLZ (int compressedLength, int length) {
  * @return The new string
  */
 char * File::loadString () {
-
 	char *string;
-	int length, count;
-
-	length = fgetc(file);
-
+	unsigned char length;
+	int count;
+	#ifdef CASIO
+		Bfile_ReadFile_OS(file,&length,1,-1);
+	#else
+		length = fgetc(file);
+	#endif
 	if (length) {
-
 		string = new char[length + 1];
-		fread(string, 1, length, file);
-
-	} else {
-
+		#ifdef CASIO
+			Bfile_ReadFile_OS(file,string,length,-1);
+		#else
+			fread(string, 1, length, file);
+		#endif
+	}else {
 		// If the length is not given, assume it is an 8.3 file name
 		string = new char[13];
-
 		for (count = 0; count < 9; count++) {
-
-			string[count] = fgetc(file);
-
+			#ifdef CASIO
+				Bfile_ReadFile_OS(file,&string[count],1,-1);
+			#else
+				string[count] = fgetc(file);
+			#endif
 			if (string[count] == '.') {
-
-				string[++count] = fgetc(file);
-				string[++count] = fgetc(file);
-				string[++count] = fgetc(file);
-				count++;
-
+				#ifdef CASIO
+					Bfile_ReadFile_OS(file,&string[++count],3,-1);
+					count+=3;
+				#else
+					string[++count] = fgetc(file);
+					string[++count] = fgetc(file);
+					string[++count] = fgetc(file);
+					count++;
+				#endif
 				break;
-
 			}
-
 		}
-
 		length = count;
-
 	}
-
 	string[length] = 0;
-
 	return string;
-
 }
 
 
-/**
- * Load RLE compressed graphical data from the file.
- *
- * @param width The width of the image to load
- * @param height The height of the image to load
- *
- * @return SDL surface containing the loaded image
- */
-SDL_Surface* File::loadSurface (int width, int height) {
-
-	SDL_Surface* surface;
-	unsigned char* pixels;
-
-	pixels = loadRLE(width * height);
-
-	surface = createSurface(pixels, width, height);
-
-	delete[] pixels;
-
-	return surface;
-
+void File::skipString () {
+	char *string;
+	unsigned char length;
+	int count;
+	#ifdef CASIO
+		Bfile_ReadFile_OS(file,&length,1,-1);
+	#else
+		length = fgetc(file);
+	#endif
+	if (length) {
+		//string = new char[length + 1];
+		seek(length,false);
+	}else {
+		// If the length is not given, assume it is an 8.3 file name
+		string = (char *)alloca(14);
+		for (count = 0; count < 9; count++) {
+			#ifdef CASIO
+				Bfile_ReadFile_OS(file,&string[count],1,-1);
+			#else
+				string[count] = fgetc(file);
+			#endif
+			if (string[count] == '.') {
+				#ifdef CASIO
+					//Bfile_ReadFile_OS(file,&string[++count],3,-1);
+					//count+=3;
+					seek(3,false);
+				#else
+					string[++count] = fgetc(file);
+					string[++count] = fgetc(file);
+					string[++count] = fgetc(file);
+					count++;
+				#endif
+				break;
+			}
+		}
+		length = count;
+	}
 }
 
+
+void File::loadMiniSurface(int width, int height,unsigned char * pixels,struct miniSurface * surf){
+	loadRLE(width * height,pixels);
+	initMiniSurface(surf,pixels,width,height);
+}
+
+void File::loadPixels(int length,unsigned char * sorted){
+	unsigned char* pixels=(unsigned char *)alloca(length);
+	//unsigned char* sorted;
+	int count;
+	//sorted = new unsigned char[length];
+	loadBlock(length,pixels);
+	// Rearrange pixels in correct order
+	for (count = 0; count < length; count++) {
+		sorted[count] = pixels[(count >> 2) + ((count & 3) * (length >> 2))];
+	}
+	//delete[] pixels;
+	//return sorted;
+}
 
 /**
  * Load a block of scrambled pixel data from the file.
@@ -489,24 +600,8 @@ SDL_Surface* File::loadSurface (int width, int height) {
  * @return Buffer containing the de-scrambled data
  */
 unsigned char* File::loadPixels  (int length) {
-
-	unsigned char* pixels;
-	unsigned char* sorted;
-	int count;
-
-	sorted = new unsigned char[length];
-
-	pixels = loadBlock(length);
-
-	// Rearrange pixels in correct order
-	for (count = 0; count < length; count++) {
-
-		sorted[count] = pixels[(count >> 2) + ((count & 3) * (length >> 2))];
-
-	}
-
-	delete[] pixels;
-
+	unsigned char * sorted = new unsigned char[length];
+	loadPixels(length,sorted);
 	return sorted;
 
 }
@@ -520,66 +615,56 @@ unsigned char* File::loadPixels  (int length) {
  *
  * @return Buffer containing the de-scrambled data
  */
-unsigned char* File::loadPixels (int length, int key) {
-
+void File::loadPixels(int length, int key,unsigned char * sorted) {
 	unsigned char* pixels;
-	unsigned char* sorted;
-	unsigned char mask = 0;
+	//unsigned char* sorted;
+	unsigned char mask;
 	int count;
-
-
-	sorted = new unsigned char[length];
-	pixels = new unsigned char[length];
-
-
+	//sorted = new unsigned char[length];
+	pixels = (unsigned char*)alloca(length);//new unsigned char[length];
 	// Read the mask
 	// Each mask pixel is either 0 or 1
 	// Four pixels are packed into the lower end of each byte
 	for (count = 0; count < length; count++) {
-
-		if (!(count & 3)) mask = fgetc(file);
+		#ifdef CASIO
+			if (!(count & 3)) Bfile_ReadFile_OS(file,&mask,1,-1);
+		#else
+			if (!(count & 3)) mask = fgetc(file);
+		#endif
 		pixels[count] = (mask >> (count & 3)) & 1;
-
 	}
-
 	// Pixels are loaded if the corresponding mask pixel is 1, otherwise
 	// the transparent index is used. Pixels are scrambled, so the mask
 	// has to be scrambled the same way.
-	for (count = 0; count < length; count++) {
-
+	for (count = 0; count < length;++count) {
 		sorted[(count >> 2) + ((count & 3) * (length >> 2))] = pixels[count];
-
 	}
-
 	// Read pixels according to the scrambled mask
-	for (count = 0; count < length; count++) {
-
+	for (count = 0; count < length;++count){
 		// Use the transparent pixel
 		pixels[count] = key;
-
 		if (sorted[count] == 1) {
-
 			// The unmasked portions are transparent, so no masked
 			// portion should be transparent.
-			while (pixels[count] == key) pixels[count] = fgetc(file);
-
+			#ifdef CASIO
+				while (pixels[count] == key)
+					Bfile_ReadFile_OS(file,&pixels[count],1,-1);
+			#else
+				while (pixels[count] == key) pixels[count] = fgetc(file);
+			#endif
 		}
-
 	}
-
 	// Rearrange pixels in correct order
 	for (count = 0; count < length; count++) {
-
 		sorted[count] = pixels[(count >> 2) + ((count & 3) * (length >> 2))];
-
 	}
-
-	delete[] pixels;
-
-	return sorted;
-
+	//delete[] pixels;
 }
-
+unsigned char* File::loadPixels (int length, int key){
+	unsigned char* sorted=new unsigned char[length];
+	loadPixels(length,key,sorted);
+	return sorted;
+}
 
 /**
  * Load a palette from the file.
@@ -587,25 +672,20 @@ unsigned char* File::loadPixels (int length, int key) {
  * @param palette The palette to be filled with loaded colours
  * @param rle Whether or not the palette data is RLE-encoded
  */
-void File::loadPalette (SDL_Color* palette, bool rle) {
+void File::loadPalette (unsigned short* palette, bool rle) {
 
-	unsigned char* buffer;
+	unsigned char* buffer=(unsigned char *)alloca(768);
 	int count;
-
-	if (rle) buffer = loadRLE(768);
-	else buffer = loadBlock(768);
-
+	if (rle) loadRLE(768,buffer);
+	else loadBlock(768,buffer);
 	for (count = 0; count < 256; count++) {
-
 		// Palette entries are 6-bit
 		// Shift them upwards to 8-bit, and fill in the lower 2 bits
-		palette[count].r = (buffer[count * 3] << 2) + (buffer[count * 3] >> 4);
-		palette[count].g = (buffer[(count * 3) + 1] << 2) + (buffer[(count * 3) + 1] >> 4);
-		palette[count].b = (buffer[(count * 3) + 2] << 2) + (buffer[(count * 3) + 2] >> 4);
+		palette[count] = ((buffer[count * 3]&62)<<10)|(buffer[(count * 3) + 1] << 5)|(buffer[(count * 3) + 2]>>1);
 
 	}
 
-	delete[] buffer;
+	//delete[] buffer;
 
 	return;
 
@@ -618,7 +698,7 @@ void File::loadPalette (SDL_Color* palette, bool rle) {
  * @param newNext Next path
  * @param newPath The new path
  */
-Path::Path (Path* newNext, char* newPath) {
+Path::Path (Path* newNext,const char* newPath) {
 
 	next = newNext;
 	path = newPath;
@@ -634,10 +714,6 @@ Path::Path (Path* newNext, char* newPath) {
 Path::~Path () {
 
 	if (next) delete next;
-	delete[] path;
-
-	return;
-
 }
 
 

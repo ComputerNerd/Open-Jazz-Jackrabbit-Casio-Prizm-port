@@ -29,49 +29,39 @@
 
 #include "video.h"
 #include "sprite.h"
-
-
+#include "surface.h"
+#include "mem.h"
+#include <string.h>
 /**
  * Create a sprite.
  */
-Sprite::Sprite () {
-
-	pixels = NULL;
+Sprite::Sprite(){
+	//pixels = NULL;
 	xOffset = 0;
 	yOffset = 0;
-
-	return;
-
+	pixelsid=INVALID_OBJ;
+	//palid=INVALID_OBJ;
 }
 
 
 /**
  * Delete the sprite.
  */
-Sprite::~Sprite () {
-
-	if (pixels) SDL_FreeSurface(pixels);
-
-	return;
-
+Sprite::~Sprite(){
+	if (pixelsid!=INVALID_OBJ) freeobj(pixelsid);
+	//if(palid!=INVALID_OBJ) freeobj(palid);
 }
-
 
 /**
  * Make the sprite blank.
  */
 void Sprite::clearPixels () {
-
-	unsigned char data;
-
-	if (pixels) SDL_FreeSurface(pixels);
-
-	data = 0;
-	pixels = createSurface(&data, 1, 1);
-	SDL_SetColorKey(pixels, SDL_SRCCOLORKEY, 0);
-
-	return;
-
+	if (pixelsid!=INVALID_OBJ) freeobj(pixelsid);
+	//if (palid!=INVALID_OBJ) freeobj(palid);
+	pixelsid=INVALID_OBJ;
+	initMiniSurface(&pixels,NULL,1,1);
+	//SDL_SetColorKey(pixels, SDL_SRCCOLORKEY, 0);
+	setColKey(&pixels,0);
 }
 
 
@@ -93,41 +83,26 @@ void Sprite::setOffset (short int x, short int y) {
  * @param height The height of the sprite image
  * @param key The transparent pixel value
  */
-void Sprite::setPixels (unsigned char *data, int width, int height, unsigned char key) {
-
-	if (pixels) SDL_FreeSurface(pixels);
-
-	pixels = createSurface(data, width, height);
-	SDL_SetColorKey(pixels, SDL_SRCCOLORKEY, key);
-
+void Sprite::setPixels(unsigned char *data, int width, int height, unsigned char key){
+	if((width!=0)&&(height!=0)){
+		if (pixelsid==INVALID_OBJ)
+			addobj(width*height,&pixelsid);
+		else
+			resizeobj(pixelsid,width*height);
+		memcpy(objs[pixelsid].ptr,data,width*height);
+		initMiniSurface(&pixels,objs[pixelsid].ptr,width,height);
+		//pixels = createSurface(data, width, height);
+		//SDL_SetColorKey(pixels, SDL_SRCCOLORKEY, key);
+		setColKey(&pixels,key);
+	}else{
+		#ifndef CASIO
+			printf("W: %d H: %d\n",width,height);
+		#endif
+		clearPixels();
+	}
 	return;
 
 }
-
-
-/**
- * Get the width of the sprite.
- *
- * @return The width
- */
-int Sprite::getWidth () {
-
-	return pixels->w;
-
-}
-
-
-/**
- * Get the height of the sprite.
- *
- * @return The height
- */
-int Sprite::getHeight() {
-
-	return pixels->h;
-
-}
-
 
 /**
  * Set the sprite's palette, or a portion thereof.
@@ -136,11 +111,20 @@ int Sprite::getHeight() {
  * @param start First colour to change
  * @param amount Number of colours to change
  */
-void Sprite::setPalette (SDL_Color *palette, int start, int amount) {
+void Sprite::setPalette (unsigned short *palette, int start, int amount){
+	/*if(palid==INVALID_OBJ) addobj(256,&palid);
+	pixels.start=start;
+	pixels.length=amount;
+	pixels.palette=(unsigned char *)objs[palid].ptr;
+	pixels.flags|=miniS_useMap;
+	unsigned int x;
+	for(x=start;x<start+amount;++x){
+		pixels.palette[x]=palette[x].r;
+		//palMap[x*3+1]=palette[x].g;
+		//palMap[x*3+2]=palette[x].b;
+	}*/
+	//SDL_SetPalette(pixels, SDL_LOGPAL, palette + start, start, amount);
 
-	SDL_SetPalette(pixels, SDL_LOGPAL, palette + start, start, amount);
-
-	return;
 
 }
 
@@ -151,16 +135,19 @@ void Sprite::setPalette (SDL_Color *palette, int start, int amount) {
  * @param index The index to use
  */
 void Sprite::flashPalette (int index) {
-
-	SDL_Color palette[256];
+	/*if(palid==INVALID_OBJ) addobj(256,&palid);
+	pixels.start=0;
+	pixels.length=256;
+	pixels.palette=(unsigned char *)objs[palid].ptr;
+	pixels.flags|=miniS_useMap;
+	//SDL_Color palette[256];
 	int count;
 
 	for (count = 0; count < 256; count++)
-		palette[count].r = palette[count].g = palette[count].b = index;
+		pixels.palette[count] *//*= palMap[count*3+1] = palMap[count*3+2]*/ // = index;
 
-	SDL_SetPalette(pixels, SDL_LOGPAL, palette, 0, 256);
-
-	return;
+	//SDL_SetPalette(pixels, SDL_LOGPAL, palette, 0, 256);
+	
 
 }
 
@@ -169,14 +156,11 @@ void Sprite::flashPalette (int index) {
  * Restore the sprite's palette to its original state.
  */
 void Sprite::restorePalette () {
-
-	video.restoreSurfacePalette(pixels);
-
-	return;
+	//if(palid!=INVALID_OBJ) freeobj(palid);
+	//video.restoreSurfacePalette(pixels);
+	//pixels.flags&=~(miniS_useMap);
 
 }
-
-
 /**
  * Draw the sprite
  *
@@ -184,24 +168,17 @@ void Sprite::restorePalette () {
  * @param y The y-coordinate at which to draw the sprite
  * @param includeOffsets Whether or not to include the sprite's offsets
  */
-void Sprite::draw (int x, int y, bool includeOffsets) {
-
-	SDL_Rect dst;
-
-	dst.x = x;
-	dst.y = y;
-
-	if (includeOffsets) {
-
-		dst.x += xOffset;
-		dst.y += yOffset;
-
+void Sprite::draw (int x, int y, bool includeOffsets){
+	//SDL_Rect dst;
+	int dx,dy;
+	dx = x;
+	dy = y;
+	if (includeOffsets){
+		dx += xOffset;
+		dy += yOffset;
 	}
-
-	SDL_BlitSurface(pixels, NULL, canvas, &dst);
-
-	return;
-
+	//SDL_BlitSurface(pixels, NULL, canvas, &dst);
+	blitToCanvas(&pixels,dx,dy);
 }
 
 
@@ -221,20 +198,17 @@ void Sprite::drawScaled (int x, int y, fixed scale) {
 	int dstX, dstY;
 	int srcX, srcY;
 
-	key = pixels->format->colorkey;
+	key = pixels.colkey;
 
-	fullWidth = FTOI(pixels->w * scale);
+	fullWidth = FTOI(pixels.w * scale);
 	if (x < -(fullWidth >> 1)) return; // Off-screen
 	if (x + (fullWidth >> 1) > canvasW) width = canvasW + (fullWidth >> 1) - x;
 	else width = fullWidth;
 
-	fullHeight = FTOI(pixels->h * scale);
+	fullHeight = FTOI(pixels.h * scale);
 	if (y < -(fullHeight >> 1)) return; // Off-screen
 	if (y + (fullHeight >> 1) > canvasH) height = canvasH + (fullHeight >> 1) - y;
 	else height = fullHeight;
-
-	if (SDL_MUSTLOCK(canvas)) SDL_LockSurface(canvas);
-
 	if (y < (fullHeight >> 1)) {
 
 		srcY = (fullHeight >> 1) - y;
@@ -249,8 +223,8 @@ void Sprite::drawScaled (int x, int y, fixed scale) {
 
 	while (srcY < height) {
 
-		srcRow = ((unsigned char *)(pixels->pixels)) + (pixels->pitch * DIV(srcY, scale));
-		dstRow = ((unsigned char *)(canvas->pixels)) + (canvas->pitch * dstY);
+		srcRow = ((unsigned char *)(pixels.pix)) + (pixels.w * DIV(srcY, scale));
+		dstRow = ((unsigned char *)(canvas.pix)) + (canvasW * dstY);
 
 		if (x < (fullWidth >> 1)) {
 
@@ -263,24 +237,15 @@ void Sprite::drawScaled (int x, int y, fixed scale) {
 			dstX = x - (fullWidth >> 1);
 
 		}
-
 		while (srcX < width) {
-
 			pixel = srcRow[DIV(srcX, scale)];
 			if (pixel != key) dstRow[dstX] = pixel;
-
 			srcX++;
 			dstX++;
-
 		}
-
 		srcY++;
 		dstY++;
-
 	}
-
-	if (SDL_MUSTLOCK(canvas)) SDL_UnlockSurface(canvas);
-
 	return;
 
 }

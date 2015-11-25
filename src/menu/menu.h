@@ -31,10 +31,12 @@
 #include "io/file.h"
 
 #include "OpenJazz.h"
-
+#ifndef CASIO
 #include <SDL/SDL.h>
-
-
+#endif
+#include "surface.h"
+#include "io/gfx/video.h"
+#include "mem.h"
 // Constants
 
 #define ESCAPE_STRING "(esc) quits"
@@ -51,36 +53,8 @@ class Menu {
 	protected:
 		void showEscString ();
 		int  message       (const char* text);
-		int  generic       (const char** optionNames, int options, int& chosen);
+		int  generic       (const char* const* optionNames, int options, int& chosen);
 		int  textInput     (const char* request, char*& text);
-
-};
-
-/// New game menus
-class GameMenu : public Menu {
-
-	private:
-		SDL_Surface*  episodeScreens[11]; ///< Episode images
-		SDL_Surface*  difficultyScreen; ///< 4 difficulty images
-		SDL_Color     palette[256]; ///< Episode selection palette
-		SDL_Color     greyPalette[256]; ///< Greyed-out episode selection palette
-		int           episodes; ///< Number of episodes
-		unsigned char difficulty; ///< Difficulty setting (0 = easy, 1 = medium, 2 = hard, 3 = turbo (hard in JJ2 levels))
-
-		int playNewGame       (GameModeType mode, char* firstLevel);
-		int newGameDifficulty (GameModeType mode, char* firstLevel);
-		int newGameDifficulty (GameModeType mode, int levelNum, int worldNum);
-		int newGameLevel      (GameModeType mode);
-		int selectEpisode     (GameModeType mode, int episode);
-		int newGameEpisode    (GameModeType mode);
-		int joinGame          ();
-
-	public:
-		GameMenu  (File* file);
-		~GameMenu ();
-
-		int newGame  ();
-		int loadGame ();
 
 };
 
@@ -89,8 +63,6 @@ class SetupMenu : public Menu {
 
 	private:
 		int setupKeyboard   ();
-		int setupJoystick   ();
-		int setupResolution ();
 #ifdef SCALE
 		int setupScaling    ();
 #endif
@@ -101,22 +73,59 @@ class SetupMenu : public Menu {
 
 };
 
+/// New game menus
+class GameMenu : public Menu {
+
+	private:
+		struct miniSurface		episodeScreens[11]; ///< Episode images
+		struct miniSurface		difficultyScreen; ///< 4 difficulty images
+		unsigned short			palette[256]; ///< Episode selection palette
+		unsigned char			greyPalette[256]; ///< Greyed-out episode selection palette
+		int				episodes; ///< Number of episodes
+		unsigned 			difficulty; ///< Difficulty setting (0 = easy, 1 = medium, 2 = hard, 3 = turbo (hard in JJ2 levels))
+		int playNewGame			(GameModeType mode, char* firstLevel);
+		int newGameDifficulty	(GameModeType mode, char* firstLevel);
+		int newGameDifficulty	(GameModeType mode, int levelNum, int worldNum);
+		int newGameLevel		(GameModeType mode);
+		int selectEpisode		(GameModeType mode, int episode);
+		int newGameEpisode		(GameModeType mode);
+		int joinGame			();
+		void loadDifficulty		(File *file);
+		void loadEpisodes		(File *file);
+	public:
+		objid_t					episodeScreensid[11];
+		objid_t					difficultyScreenid=INVALID_OBJ;
+		GameMenu  (File* file);
+		~GameMenu ();
+		File * skipLogos();
+		int newGame  ();
+		int loadGame ();
+
+};
 /// Main menu
 class MainMenu : public Menu {
 
 	private:
-		SDL_Surface* background; ///< Menu image
-		SDL_Surface* highlight; ///< Menu image with highlighted text
-		SDL_Surface* logo; ///< OJ logo image
-		GameMenu*    gameMenu; ///< New game menu
-		SDL_Color    palette[256]; ///< Menu palette
+		struct miniSurface	background; ///< Menu image
+		struct miniSurface	highlight; ///< Menu image with highlighted text
+		struct miniSurface	logo; ///< OJ logo image
+		#ifndef CASIO
+		unsigned char		logo_pixels[64*40];
+		#endif
+		//unsigned char		background_pixels[SW*SH];//SW and SH are constants they are SW=320 SH=200 62.5KB each
+		//unsigned char		highlight_pixels[SW*SH];
+		objid_t				background_id;
+		objid_t				highlight_id;
+		GameMenu*			gameMenu; ///< New game menu
+		unsigned short		palette[256]; ///< Menu palette
 
 		int select (int option);
 
 	public:
 		MainMenu  ();
 		~MainMenu ();
-
+		File *loadLogos();
+		File *skipLogos();
 		int main ();
 
 };
@@ -124,7 +133,7 @@ class MainMenu : public Menu {
 
 // Variables
 
-EXTERN SDL_Color menuPalette[256]; /// Palette used by most menu screens
+EXTERN unsigned short menuPalette[256]; /// Palette used by most menu screens
 
 #endif
 
