@@ -33,7 +33,7 @@
 
 #include "jj1bonuslevel/jj1bonuslevelplayer/jj1bonuslevelplayer.h"
 #include "jj1level/jj1levelplayer/jj1levelplayer.h"
-#include "jj2level/jj2levelplayer/jj2levelplayer.h"
+//#include "jj2level/jj2levelplayer/jj2levelplayer.h"
 #include "level/levelplayer.h"
 
 #include "game/game.h"
@@ -41,7 +41,11 @@
 #include "util.h"
 
 #include <string.h>
-
+#ifdef CASIO
+	#include <fxcg/display.h>
+	#include <fxcg/keyboard.h>
+	#include "platforms/casio.h"
+#endif
 
 /**
  * Create the player.
@@ -102,7 +106,6 @@ void Player::init (Game* owner, char *playerName, unsigned char *playerCols, uns
 	flockSize = 0;
 	team = newTeam;
 	teamScore = 0;
-
 	if (playerCols) {
 
 		memcpy(cols, playerCols, PCOLOURS);
@@ -113,9 +116,7 @@ void Player::init (Game* owner, char *playerName, unsigned char *playerCols, uns
 		cols[1] = CHAR_BAND;
 		cols[2] = CHAR_GUN;
 		cols[3] = CHAR_WBAND;
-
 	}
-
 	return;
 
 }
@@ -180,20 +181,16 @@ void Player::reset (int x, int y) {
  */
 void Player::createLevelPlayer (LevelType levelType, Anim** anims,
 	Anim** flippedAnims, unsigned char x, unsigned char y) {
-
 	int count;
 
 	if (levelPlayer) {
-
 		flockSize = levelPlayer->countBirds();
 		delete levelPlayer;
 
 	}
-
 	switch (levelType) {
 
 		case LT_JJ1:
-
 			levelPlayer = new JJ1LevelPlayer(this, anims, x, y, flockSize);
 
 			break;
@@ -206,16 +203,14 @@ void Player::createLevelPlayer (LevelType levelType, Anim** anims,
 
 		case LT_JJ2:
 
-			levelPlayer = new JJ2LevelPlayer(this, anims, flippedAnims, x, y, flockSize);
+			//levelPlayer = new JJ2LevelPlayer(this, anims, flippedAnims, x, y, flockSize);
 
 			break;
 
 	}
 
-	for (count = 0; count < PCONTROLS; count++) pcontrols[count] = false;
-
-	return;
-
+	//for (count = 0; count < PCONTROLS; count++) pcontrols[count] = false;
+	memset(pcontrols,0,sizeof(bool)*PCONTROLS);
 }
 
 
@@ -262,7 +257,7 @@ char * Player::getName () {
  */
 JJ1BonusLevelPlayer* Player::getJJ1BonusLevelPlayer () {
 
-	return dynamic_cast<JJ1BonusLevelPlayer*>(levelPlayer);
+	return static_cast<JJ1BonusLevelPlayer*>(levelPlayer);
 
 }
 
@@ -274,7 +269,7 @@ JJ1BonusLevelPlayer* Player::getJJ1BonusLevelPlayer () {
  */
 JJ1LevelPlayer* Player::getJJ1LevelPlayer () {
 
-	return dynamic_cast<JJ1LevelPlayer*>(levelPlayer);
+	return static_cast<JJ1LevelPlayer*>(levelPlayer);
 
 }
 
@@ -284,11 +279,11 @@ JJ1LevelPlayer* Player::getJJ1LevelPlayer () {
  *
  * @return The JJ2 level player
  */
-JJ2LevelPlayer* Player::getJJ2LevelPlayer () {
+/*JJ2LevelPlayer* Player::getJJ2LevelPlayer () {
 
 	return dynamic_cast<JJ2LevelPlayer*>(levelPlayer);
 
-}
+}*/
 
 
 /**
@@ -437,7 +432,6 @@ bool Player::kill (Player *source) {
 
 }
 
-
 /**
  * Set the checkpoint
  *
@@ -445,7 +439,9 @@ bool Player::kill (Player *source) {
  * @param gridY Y-coordinate (in tiles) of the checkpoint
  */
 void Player::setCheckpoint (int gridX, int gridY) {
-
+	#ifdef CASIO
+		drawStrL(1,"1");
+	#endif
 	game->setCheckpoint(gridX, gridY);
 
 	return;
@@ -461,78 +457,8 @@ void Player::setCheckpoint (int gridX, int gridY) {
  *
  * @return Whether or not the level should end
  */
-bool Player::endOfLevel (int gridX, int gridY) {
+bool Player::endOfLevel (int gridX, int gridY){
 
 	return game->getMode()->endOfLevel(game, this, gridX, gridY);
 
 }
-
-
-/**
- * Copy data to be sent to clients/server
- */
-void Player::send (unsigned char *buffer) {
-
-	buffer[3] = pcontrols[C_UP];
-	buffer[4] = pcontrols[C_DOWN];
-	buffer[5] = pcontrols[C_LEFT];
-	buffer[6] = pcontrols[C_RIGHT];
-	buffer[7] = pcontrols[C_JUMP];
-	buffer[8] = pcontrols[C_FIRE];
-	buffer[10] = ammo[0] >> 8;
-	buffer[11] = ammo[0] & 255;
-	buffer[12] = ammo[1] >> 8;
-	buffer[13] = ammo[1] & 255;
-	buffer[14] = ammo[2] >> 8;
-	buffer[15] = ammo[2] & 255;
-	buffer[16] = ammo[3] >> 8;
-	buffer[17] = ammo[3] & 255;
-	buffer[18] = ammoType + 1;
-	buffer[19] = score >> 24;
-	buffer[20] = (score >> 16) & 255;
-	buffer[21] = (score >> 8) & 255;
-	buffer[22] = score & 255;
-	buffer[24] = lives;
-	buffer[28] = fireSpeed;
-	buffer[45] = pcontrols[C_SWIM];
-
-	if (levelPlayer) levelPlayer->send(buffer);
-
-	return;
-
-}
-
-
-/**
- * Interpret data received from client/server
- */
-void Player::receive (unsigned char *buffer) {
-
-	if (buffer[1] == MT_P_TEMP) {
-
-		pcontrols[C_UP] = buffer[3];
-		pcontrols[C_DOWN] = buffer[4];
-		pcontrols[C_LEFT] = buffer[5];
-		pcontrols[C_RIGHT] = buffer[6];
-		pcontrols[C_JUMP] = buffer[7];
-		pcontrols[C_SWIM] = buffer[45];
-		pcontrols[C_FIRE] = buffer[8];
-		pcontrols[C_CHANGE] = false;
-		flockSize = buffer[9];
-		ammo[0] = (buffer[10] << 8) + buffer[11];
-		ammo[1] = (buffer[12] << 8) + buffer[13];
-		ammo[2] = (buffer[14] << 8) + buffer[15];
-		ammo[3] = (buffer[16] << 8) + buffer[17];
-		ammoType = buffer[18] - 1;
-		score = (buffer[19] << 24) + (buffer[20] << 16) + (buffer[21] << 8) + buffer[22];
-		lives = buffer[24];
-		fireSpeed = buffer[28];
-
-	}
-
-	if (levelPlayer) levelPlayer->receive(buffer);
-
-	return;
-
-}
-

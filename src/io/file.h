@@ -27,10 +27,11 @@
 
 
 #include "OpenJazz.h"
-
+#ifndef CASIO
 #include <SDL/SDL.h>
+#endif
 #include <stdio.h>
-
+#include "surface.h"
 
 // Classes
 
@@ -38,12 +39,14 @@
 class File {
 
 	private:
-		FILE* file;
 		char* filePath;
-
 		bool open (const char* path, const char* name, bool write);
-
 	public:
+		#ifdef CASIO
+		int file=-1;
+		#else
+		FILE* file;
+		#endif
 		File                           (const char* name, bool write);
 		~File                          ();
 
@@ -57,15 +60,20 @@ class File {
 		void               storeShort  (unsigned short int val);
 		signed long int    loadInt     ();
 		void               storeInt    (signed long int val);
-		unsigned char*     loadBlock   (int length);
-		unsigned char*     loadRLE     (int length);
+		unsigned char*		loadBlock   (int length);
+		void				loadBlock   (int length,unsigned char * buf);
+		unsigned char*		loadRLE     (int length);
+		void				loadRLE     (int length,unsigned char * buffer);
 		void               skipRLE     ();
-		unsigned char*     loadLZ      (int compressedLength, int length);
-		char*              loadString  ();
-		SDL_Surface*       loadSurface (int width, int height);
-		unsigned char*     loadPixels  (int length);
-		unsigned char*     loadPixels  (int length, int key);
-		void               loadPalette (SDL_Color* palette, bool rle = true);
+		//unsigned char*     loadLZ      (int compressedLength, int length);
+		char*				loadString();
+		void				skipString();
+		void				loadMiniSurface (int width, int height,unsigned char * pixels,struct miniSurface * surf);
+		unsigned char*		loadPixels		(int length);
+		void				loadPixels		(int length,unsigned char * sorted);
+		void				loadPixels		(int length, int key,unsigned char * sorted);
+		unsigned char*		loadPixels		(int length, int key);
+		void				loadPalette		(unsigned short* palette, bool rle = true);
 
 };
 
@@ -74,9 +82,9 @@ class Path {
 
 	public:
 		Path* next; ///< Next path to check
-		char* path; ///< Path
+		const char* path; ///< Path
 
-		Path  (Path* newNext, char* newPath);
+		Path  (Path* newNext,const char* newPath);
 		~Path ();
 
 };

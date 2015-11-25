@@ -27,10 +27,11 @@
 
 
 #include "paletteeffects.h"
-
+#ifndef CASIO
 #include <SDL/SDL.h>
-
-
+#endif
+#include "surface.h"
+#include "mem.h"
 // Constants
 
 // Original screen dimensions
@@ -63,41 +64,34 @@
 class Video {
 
 	private:
+		#ifndef CASIO
 		SDL_Surface* screen; ///< Output surface
-
+		#endif
+		objid_t canvasID=INVALID_OBJ;
 		// Palettes
-		SDL_Color*   currentPalette; ///< Current palette
-		SDL_Color    logicalPalette[256]; ///< Logical palette (greyscale)
-		bool         fakePalette; ///< Whether or not the palette mode is being emulated
-
-		int          maxW; ///< Largest possible width
-		int          maxH; ///< Largest possible height
-		int          screenW; ///< Real width
-		int          screenH; ///< Real height
+		//SDL_Color*   currentPalette; ///< Current palette
+		
+		unsigned short	finalPalette[256];
+		bool			fakePalette; ///< Whether or not the palette mode is being emulated
 #ifdef SCALE
 		int          scaleFactor; ///< Scaling factor
 #endif
 		bool         fullscreen; ///< Full-screen mode
 
-		void findMaxResolution ();
 		void expose            ();
 
 	public:
+		unsigned short	currentPalette[256];
 		Video ();
+		~Video();
+		bool       init                  (bool startFullscreen);
 
-		bool       init                  (int width, int height, bool startFullscreen);
+		bool       resize                (void);
 
-		bool       resize                (int width, int height);
+		void			setPalette            (unsigned short *palette);
+		unsigned short*	getPalette            ();
+		void			changePalette         (unsigned short *palette, unsigned char first, unsigned int amount);
 
-		void       setPalette            (SDL_Color *palette);
-		SDL_Color* getPalette            ();
-		void       changePalette         (SDL_Color *palette, unsigned char first, unsigned int amount);
-		void       restoreSurfacePalette (SDL_Surface *surface);
-
-		int        getMaxWidth           ();
-		int        getMaxHeight          ();
-		int        getWidth              ();
-		int        getHeight             ();
 #ifdef SCALE
 		int        getScaleFactor        ();
 		int        setScaleFactor        (int newScaleFactor);
@@ -105,8 +99,9 @@ class Video {
 #ifndef FULLSCREEN_ONLY
 		bool       isFullscreen          ();
 #endif
-
-		void       update                (SDL_Event *event);
+		#ifndef CASIO
+			void       update                (SDL_Event *event);
+		#endif
 		void       flip                  (int mspf, PaletteEffect* paletteEffects);
 
 		void       clearScreen           (int index);
@@ -116,16 +111,17 @@ class Video {
 
 // Variables
 
-EXTERN SDL_Surface* canvas; ///< Surface used for drawing
-EXTERN int          canvasW; ///< Drawing surface width
-EXTERN int          canvasH; ///< Drawing surface height
-
+extern miniSurface	canvas; ///< Surface used for drawing
+//EXTERN int          canvasW; ///< Drawing surface width
+//EXTERN int          canvasH; ///< Drawing surface height
+#define canvasW 384
+#define canvasH 216
+//Makes constant propogation possible
 EXTERN Video video; ///< Video output
 
 
 // Functions
 
-EXTERN SDL_Surface*   createSurface  (unsigned char* pixels, int width, int height);
 EXTERN void           drawRect       (int x, int y, int width, int height, int index);
 
 #endif

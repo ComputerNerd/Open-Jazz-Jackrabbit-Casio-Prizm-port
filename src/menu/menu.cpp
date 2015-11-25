@@ -1,4 +1,3 @@
-
 /**
  *
  * @file menu.cpp
@@ -36,24 +35,22 @@
 #include "io/controls.h"
 #include "io/gfx/font.h"
 #include "io/gfx/video.h"
-#include "io/sound.h"
+//#include "io/sound.h"
 #include "loop.h"
 #include "util.h"
 
 #include <string.h>
 
+#ifdef CASIO
+	#include "platforms/casio.h"
+#endif
 
 /**
  * Show the "(esc) quits" string.
  */
-void Menu::showEscString () {
-
+void Menu::showEscString(){
 	fontbig->showString(ESCAPE_STRING, 3, canvasH - 12);
-
-	return;
-
 }
-
 
 /**
  * Display a message to the user.
@@ -62,31 +59,27 @@ void Menu::showEscString () {
  *
  * @return Error code
  */
-int Menu::message (const char* text) {
+int Menu::message(const char* text){
 
 	video.setPalette(menuPalette);
 
-	while (true) {
+	while (true){
 
-		if (loop(NORMAL_LOOP) == E_QUIT) return E_QUIT;
+		if(loop(NORMAL_LOOP) == E_QUIT) return E_QUIT;
 
-		if (controls.release(C_ENTER) || controls.release(C_ESCAPE) || controls.wasCursorReleased())
+		if(controls.release(C_ENTER) || controls.release(C_ESCAPE))
 			return E_NONE;
-
-		SDL_Delay(T_FRAME);
-
+		#ifdef CASIO
+			//casioDelay(T_FRAME);
+		#else
+			SDL_Delay(T_FRAME);
+		#endif
 		video.clearScreen(15);
-
 		// Draw the message
 		fontmn2->showString(text, canvasW >> 2, (canvasH >> 1) - 16);
-
 	}
-
 	return E_NONE;
-
 }
-
-
 /**
  * Let the user select from a menu of the given options.
  *
@@ -96,7 +89,7 @@ int Menu::message (const char* text) {
  *
  * @return Error code
  */
-int Menu::generic (const char** optionNames, int options, int& chosen) {
+int Menu::generic (const char* const* optionNames, int options, int& chosen) {
 
 	int x, y, count;
 
@@ -114,13 +107,13 @@ int Menu::generic (const char** optionNames, int options, int& chosen) {
 
 		if (controls.release(C_ENTER)) {
 
-			playSound(S_ORB);
+			//playSound(S_ORB);
 
 			return E_NONE;
 
 		}
 
-		if (controls.getCursor(x, y)) {
+		/*if (controls.getCursor(x, y)) {
 
 			if ((x < 100) && (y >= canvasH - 12) && controls.wasCursorReleased()) return E_RETURN;
 
@@ -133,7 +126,7 @@ int Menu::generic (const char** optionNames, int options, int& chosen) {
 
 				if (controls.wasCursorReleased()) {
 
-					playSound(S_ORB);
+					//playSound(S_ORB);
 
 					return E_NONE;
 
@@ -141,9 +134,13 @@ int Menu::generic (const char** optionNames, int options, int& chosen) {
 
 			}
 
-		}
+		}*/
 
-		SDL_Delay(T_FRAME);
+		#ifdef CASIO
+			//casioDelay(T_FRAME);
+		#else
+			SDL_Delay(T_FRAME);
+		#endif
 
 		video.clearScreen(0);
 
@@ -176,7 +173,7 @@ int Menu::generic (const char** optionNames, int options, int& chosen) {
  * @return Error code
  */
 int Menu::textInput (const char* request, char*& text) {
-
+	#ifndef CASIO
 	char *input;
 	int count, terminate, character, x, y;
 	unsigned int cursor;
@@ -242,17 +239,17 @@ int Menu::textInput (const char* request, char*& text) {
 		}
 
 
-		if (controls.release(C_ESCAPE) ||
-			(controls.getCursor(x, y) && (x < 100) && (y >= canvasH - 12) && controls.wasCursorReleased())) {
-
+		if (controls.release(C_ESCAPE)) {
 			delete[] input;
-
 			return E_RETURN;
-
 		}
 
 
-		SDL_Delay(T_FRAME);
+		#ifdef CASIO
+			//casioDelay(T_FRAME);
+		#else
+			SDL_Delay(T_FRAME);
+		#endif
 
 		video.clearScreen(15);
 
@@ -282,7 +279,7 @@ int Menu::textInput (const char* request, char*& text) {
 
 		if (controls.release(C_ENTER)) {
 
-			playSound(S_ORB);
+			//playSound(S_ORB);
 
 			// Replace the original string with the input string
 			delete[] text;
@@ -297,6 +294,6 @@ int Menu::textInput (const char* request, char*& text) {
 	delete[] input;
 
 	return E_RETURN;
-
+	#endif
 }
 

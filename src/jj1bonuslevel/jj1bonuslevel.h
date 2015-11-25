@@ -28,9 +28,10 @@
 #include "level/level.h"
 
 #include "io/gfx/anim.h"
-
+#ifndef CASIO
 #include <SDL/SDL.h>
-
+#endif
+#include "surface.h"
 
 // Constants
 
@@ -61,14 +62,16 @@ class Font;
 class JJ1BonusLevel : public Level {
 
 	private:
-		SDL_Surface*             tileSet; ///< Tile images
-		SDL_Surface*             background; ///< Background image
-		Font*                    font; ///< On-screen message font
-		Sprite*                  spriteSet; ///< Sprite images
-		Anim                     animSet[BANIMS]; ///< Animations
-		JJ1BonusLevelGridElement grid[BLH][BLW]; ///< Level grid
-		char                     mask[60][64]; ///< Tile masks (at most 60 tiles, all with 8 * 8 masks)
-		fixed                    direction; ///< Player's direction
+		struct miniSurface			tileSet; ///< Tile images
+		struct miniSurface			background; ///< Background image
+		objid_t						tileSetid=INVALID_OBJ;
+		objid_t						backgroundid=INVALID_OBJ;
+		Font*						font; ///< On-screen message font
+		Sprite*						spriteSet; ///< Sprite images
+		Anim						animSet[BANIMS]; ///< Animations
+		JJ1BonusLevelGridElement	grid[BLH][BLW]; ///< Level grid
+		char						mask[60][64]; ///< Tile masks (at most 60 tiles, all with 8 * 8 masks)
+		fixed						direction; ///< Player's direction
 
 		int  loadSprites ();
 		int  loadTiles   (char* fileName);
@@ -77,11 +80,10 @@ class JJ1BonusLevel : public Level {
 		void draw        ();
 
 	public:
-		JJ1BonusLevel  (Game* owner, char* fileName, bool multi);
+		JJ1BonusLevel  (Game* owner, char* fileName);
 		~JJ1BonusLevel ();
 
 		bool checkMask (fixed x, fixed y);
-		void receive   (unsigned char* buffer);
 		int  play      ();
 
 };

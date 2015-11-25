@@ -33,21 +33,23 @@
 #include "io/controls.h"
 #include "io/gfx/font.h"
 #include "io/gfx/video.h"
-#include "io/sound.h"
+//#include "io/sound.h"
 #include "player/player.h"
 #include "loop.h"
 #include "setup.h"
 #include "util.h"
-
+#ifdef CASIO
+	#include "platforms/casio.h"
+#endif
 
 /**
  * Run the keyboard setup menu.
  *
  * @return Error code
  */
+static const char *options[PCONTROLS] = {"up", "down", "left", "right", "jump", "swim up", "fire", "weapon"};
 int SetupMenu::setupKeyboard () {
 
-	const char *options[PCONTROLS] = {"up", "down", "left", "right", "jump", "swim up", "fire", "weapon"};
 	int progress, character, x, y, count;
 
 	progress = 0;
@@ -60,9 +62,9 @@ int SetupMenu::setupKeyboard () {
 
 		if (character == controls.getKey(C_ESCAPE)) return E_NONE;
 
-		if (controls.getCursor(x, y) &&
+		/*if (controls.getCursor(x, y) &&
 			(x < 100) && (y >= canvasH - 12) &&
-			controls.wasCursorReleased()) return E_NONE;
+			controls.wasCursorReleased()) return E_NONE;*/
 
 		if (character > 0) {
 
@@ -84,7 +86,7 @@ int SetupMenu::setupKeyboard () {
 
 					// If all controls have been assigned, return
 
-					playSound(S_ORB);
+					//playSound(S_ORB);
 
 					return E_NONE;
 
@@ -95,7 +97,11 @@ int SetupMenu::setupKeyboard () {
 		}
 
 
-		SDL_Delay(T_FRAME);
+		#ifdef CASIO
+			//casioDelay(T_FRAME);
+		#else
+			SDL_Delay(T_FRAME);
+		#endif
 
 		video.clearScreen(0);
 
@@ -130,290 +136,6 @@ int SetupMenu::setupKeyboard () {
 }
 
 
-/**
- * Run the joystick setup menu.
- *
- * @return Error code
- */
-int SetupMenu::setupJoystick () {
-
-	const char *options[PCONTROLS] = {"up", "down", "left", "right", "jump", "swim up", "fire", "weapon"};
-	int progress, control, x, y, count;
-
-	progress = 0;
-
-	while (true) {
-
-		control = loop(SET_JOYSTICK_LOOP);
-
-		if (control == E_QUIT) return E_QUIT;
-
-		switch (control & 0xF00) {
-
-			case JOYSTICKB:
-
-				// If this is a navigation controls (up, down, or enter),
-				// make sure it's not the same as other navigation controls
-
-				if (((progress != C_UP) &&
-					(progress != C_DOWN) &&
-					(progress != C_ENTER)) ||
-					(controls.getButton(progress) == (control & 0xFF)) ||
-					((controls.getButton(C_UP) != (control & 0xFF)) &&
-					(controls.getButton(C_DOWN) != (control & 0xFF)) &&
-					(controls.getButton(C_ENTER) != (control & 0xFF)))) {
-
-					controls.setButton(progress, control & 0xFF);
-					progress++;
-
-					if (progress == 7) {
-
-						// If all controls have been assigned, return
-
-						playSound(S_ORB);
-
-						return E_NONE;
-
-					}
-
-				}
-
-				break;
-
-			case JOYSTICKANEG:
-
-				// If this is a navigation controls (up, down, or enter),
-				// make sure it's not the same as other navigation controls
-
-				if (((progress != C_UP) &&
-					(progress != C_DOWN) &&
-					(progress != C_ENTER)) ||
-					((controls.getAxis(progress) == (control & 0xFF)) && !controls.getAxisDirection(progress)) ||
-					(((controls.getAxis(C_UP) != (control & 0xFF)) || controls.getAxisDirection(C_UP)) &&
-					((controls.getAxis(C_DOWN) != (control & 0xFF)) || controls.getAxisDirection(C_DOWN)) &&
-					((controls.getAxis(C_ENTER) != (control & 0xFF)) || controls.getAxisDirection(C_ENTER)))) {
-
-					controls.setAxis(progress, control & 0xFF, false);
-					progress++;
-
-					if (progress == 7) {
-
-						// If all controls have been assigned, return
-
-						playSound(S_ORB);
-
-						return E_NONE;
-
-					}
-
-				}
-
-				break;
-
-			case JOYSTICKAPOS:
-
-				// If this is a navigation controls (up, down, or enter),
-				// make sure it's not the same as other navigation controls
-
-				if (((progress != C_UP) &&
-					(progress != C_DOWN) &&
-					(progress != C_ENTER)) ||
-					((controls.getAxis(progress) == (control & 0xFF)) && controls.getAxisDirection(progress)) ||
-					(((controls.getAxis(C_UP) != (control & 0xFF)) || !controls.getAxisDirection(C_UP)) &&
-					((controls.getAxis(C_DOWN) != (control & 0xFF)) || !controls.getAxisDirection(C_DOWN)) &&
-					((controls.getAxis(C_ENTER) != (control & 0xFF)) || !controls.getAxisDirection(C_ENTER)))) {
-
-					controls.setAxis(progress, control & 0xFF, true);
-					progress++;
-
-					if (progress == 7) {
-
-						// If all controls have been assigned, return
-
-						playSound(S_ORB);
-
-						return E_NONE;
-
-					}
-
-				}
-
-				break;
-
-		}
-
-		if (controls.release(C_ESCAPE)) return E_NONE;
-
-		if ((controls.getCursor(x, y) &&
-			(x < 100) && (y >= canvasH - 12) &&
-			controls.wasCursorReleased())) return E_NONE;
-
-
-		SDL_Delay(T_FRAME);
-
-		video.clearScreen(0);
-
-		for (count = 0; count < 7; count++) {
-
-			if (count < progress)
-				fontmn2->showString("okay", (canvasW >> 2) + 176, (canvasH >> 1) + (count << 4) - 56);
-
-			else if (count == progress) fontmn2->mapPalette(240, 8, 114, 16);
-
-			fontmn2->showString(options[count], canvasW >> 2, (canvasH >> 1) + (count << 4) - 56);
-
-			if (count == progress) {
-
-				fontmn2->showString("press control", (canvasW >> 2) + 112, (canvasH >> 1) + (count << 4) - 56);
-
-				fontmn2->restorePalette();
-
-			}
-
-		}
-
-		showEscString();
-
-	}
-
-	return E_NONE;
-
-}
-
-
-/**
- * Run the resolution setup menu.
- *
- * @return Error code
- */
-int SetupMenu::setupResolution () {
-
-	int widthOptions[] = {SW, 400, 512, 640, 720, 768, 800, 960, 1024, 1152,
-		1280, 1440, 1600, 1680, 1920, 2048, 2560, 3200, MAX_SW};
-	int heightOptions[] = {SH, 240, 300, 384, 400, 480, 576, 600, 720, 768,
-		800, 864, 900, 960, 1024, 1050, 1080, 1152, 1200, 1536, 1600, 2048,
-		MAX_SH};
-	int screenW, screenH, x, y, count;
-	bool dimension;
-
-	screenW = video.getWidth();
-	screenH = video.getHeight();
-
-	dimension = false;
-
-
-	while (true) {
-
-		if (loop(NORMAL_LOOP) == E_QUIT) return E_QUIT;
-
-		if (controls.release(C_ESCAPE)) return E_NONE;
-
-		if (controls.release(C_ENTER)) return E_NONE;
-
-		if (controls.getCursor(x, y)) {
-
-			if ((x >= 32) && (x < 132) && (y >= canvasH - 12) && controls.wasCursorReleased()) return E_NONE;
-
-			dimension = (x >= (canvasW >> 2) + 44);
-
-		}
-
-		SDL_Delay(T_FRAME);
-
-		video.clearScreen(0);
-
-
-		// Show screen corners
-		drawRect(0, 0, 32, 32, 79);
-		drawRect(canvasW - 32, 0, 32, 32, 79);
-		drawRect(canvasW - 32, canvasH - 32, 32, 32, 79);
-		drawRect(0, canvasH - 32, 32, 32, 79);
-
-
-		// X
-		fontmn2->showString("x", (canvasW >> 2) + 40, canvasH >> 1);
-
-		if (!dimension) fontmn2->mapPalette(240, 8, 114, 16);
-
-		// Width
-		fontmn2->showNumber(screenW, (canvasW >> 2) + 32, canvasH >> 1);
-
-		if (!dimension) fontmn2->restorePalette();
-		else fontmn2->mapPalette(240, 8, 114, 16);
-
-		// Height
-		fontmn2->showNumber(screenH, (canvasW >> 2) + 104, canvasH >> 1);
-
-		if (dimension) fontmn2->restorePalette();
-
-
-		count = 0;
-
-		if (controls.release(C_LEFT)) dimension = !dimension;
-
-		if (controls.release(C_RIGHT)) dimension = !dimension;
-
-		if (controls.release(C_UP)) {
-
-			if ((!dimension) && (screenW < video.getMaxWidth())) {
-
-				while (screenW >= widthOptions[count]) count++;
-
-				screenW = widthOptions[count];
-
-			}
-
-			if (dimension && (screenH < video.getMaxHeight())) {
-
-				while (screenH >= heightOptions[count]) count++;
-
-				screenH = heightOptions[count];
-
-			}
-
-		}
-
-		if (controls.release(C_DOWN)) {
-
-			if ((!dimension) && (screenW > SW)) {
-
-				count = 18;
-
-				while (screenW <= widthOptions[count]) count--;
-
-				screenW = widthOptions[count];
-				count = -1;
-
-			}
-
-			if (dimension && (screenH > SH)) {
-
-				count = 22;
-
-				while (screenH <= heightOptions[count]) count--;
-
-				screenH = heightOptions[count];
-				count = -1;
-
-			}
-
-		}
-
-		// Check for a resolution change
-		if (count) {
-
-			playSound(S_ORB);
-			video.resize(screenW, screenH);
-
-		}
-
-		fontbig->showString(ESCAPE_STRING, 35, canvasH - 12);
-
-	}
-
-	return E_NONE;
-
-}
 
 
 #ifdef SCALE
@@ -439,9 +161,9 @@ int SetupMenu::setupScaling () {
 
 		if (controls.release(C_ENTER)) return E_NONE;
 
-		if (controls.getCursor(x, y) &&
+		/*if (controls.getCursor(x, y) &&
 			(x >= 32) && (x < 132) && (y >= canvasH - 12) &&
-			controls.wasCursorReleased()) return E_NONE;
+			controls.wasCursorReleased()) return E_NONE;*/
 
 		SDL_Delay(T_FRAME);
 
@@ -474,7 +196,7 @@ int SetupMenu::setupScaling () {
 		// Check for a scaling change
 		if (scaleFactor != video.getScaleFactor()) {
 
-			playSound(S_ORB);
+			//playSound(S_ORB);
 			scaleFactor = video.setScaleFactor(scaleFactor);
 
 		}
@@ -489,89 +211,19 @@ int SetupMenu::setupScaling () {
 #endif
 
 
-/**
- * Run the audio setup menu.
- *
- * @return Error code
- */
-int SetupMenu::setupSound () {
-
-	int x, y;
-
-	while (true) {
-
-		if (loop(NORMAL_LOOP) == E_QUIT) return E_QUIT;
-
-		if (controls.release(C_ESCAPE)) return E_NONE;
-
-		if (controls.release(C_ENTER)) return E_NONE;
-
-		if (controls.getCursor(x, y)) {
-
-			if ((x < 100) && (y >= canvasH - 12) && controls.wasCursorReleased()) return E_NONE;
-
-			x -= (canvasW >> 2) + 128;
-			y -= canvasH >> 1;
-
-			if ((x >= 0) && (x < (MAX_VOLUME >> 1)) && (y >= 0) && (y < 11)) soundsVolume = x << 1;
-
-			if (controls.wasCursorReleased()) playSound(S_ORB);
-
-		}
-
-
-		SDL_Delay(T_FRAME);
-
-		video.clearScreen(0);
-
-
-		// Volume
-		fontmn2->mapPalette(240, 8, 114, 16);
-		fontmn2->showString("effect volume", canvasW >> 2, canvasH >> 1);
-		fontmn2->restorePalette();
-
-		drawRect((canvasW >> 2) + 128, canvasH >> 1, soundsVolume >> 1, 11, 175);
-
-		if (controls.release(C_LEFT)) {
-
-			if (soundsVolume - 4 < 0) soundsVolume = 0;
-			else soundsVolume -= 4;
-
-			playSound(S_ORB);
-
-		}
-
-		if (controls.release(C_RIGHT)) {
-
-			if (soundsVolume + 4 > MAX_VOLUME) soundsVolume = MAX_VOLUME;
-			else soundsVolume += 4;
-
-			playSound(S_ORB);
-
-		}
-
-		showEscString();
-
-	}
-
-	return E_NONE;
-
-}
-
 
 /**
  * Run the setup menu.
  *
  * @return Error code
  */
-int SetupMenu::setupMain () {
-
-	const char* setupOptions[7] = {"character", "keyboard", "joystick", "resolution", "scaling", "sound", "gameplay"};
-	const char* setupCharacterOptions[5] = {"name", "fur", "bandana", "gun", "wristband"};
-	const char* setupCharacterColOptions[8] = {"white", "red", "orange", "yellow", "green", "blue", "animation 1", "animation 2"};
-	const unsigned char setupCharacterCols[8] = {PC_GREY, PC_RED, PC_ORANGE, PC_YELLOW, PC_LGREEN, PC_BLUE, PC_SANIM, PC_LANIM};
-	const char* setupModsOff[3] = {"slow motion off", "take extra items", "one-bird limit"};
-	const char* setupModsOn[3] = {"slow motion on", "leave extra items", "unlimited birds"};
+static const char*const setupOptions[7] = {"character", "keyboard", "joystick", "resolution", "scaling", "sound", "gameplay"};
+static const char*const setupCharacterOptions[5] = {"name", "fur", "bandana", "gun", "wristband"};
+static const char*const setupCharacterColOptions[8] = {"white", "red", "orange", "yellow", "green", "blue", "animation 1", "animation 2"};
+static const unsigned char setupCharacterCols[8] = {PC_GREY, PC_RED, PC_ORANGE, PC_YELLOW, PC_LGREEN, PC_BLUE, PC_SANIM, PC_LANIM};
+static const char*const setupModsOff[3] = {"slow motion off", "take extra items", "one-bird limit"};
+static const char*const setupModsOn[3] = {"slow motion on", "leave extra items", "unlimited birds"};
+int SetupMenu::setupMain(){
 	const char* setupMods[3];
 	int ret;
 	int option, suboption, subsuboption;
@@ -642,21 +294,13 @@ int SetupMenu::setupMain () {
 
 			case 2:
 
-#if !defined(DINGOO)
-				if (setupJoystick() == E_QUIT) return E_QUIT;
 
-#else
 				if (message("FEATURE NOT AVAILABLE") == E_QUIT) return E_QUIT;
-#endif
-
 				break;
 
 			case 3:
-
-				if (setupResolution() == E_QUIT) return E_QUIT;
-
+				if (message("FEATURE NOT AVAILABLE") == E_QUIT) return E_QUIT;
 				break;
-
 			case 4:
 
 #ifdef SCALE
@@ -669,8 +313,8 @@ int SetupMenu::setupMain () {
 
 			case 5:
 
-				if (setupSound() == E_QUIT) return E_QUIT;
-
+				//if (setupSound() == E_QUIT) return E_QUIT;
+				if (message("FEATURE NOT AVAILABLE") == E_QUIT) return E_QUIT;
 				break;
 
 			case 6:

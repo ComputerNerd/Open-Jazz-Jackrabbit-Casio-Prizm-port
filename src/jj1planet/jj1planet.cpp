@@ -33,12 +33,15 @@
 #include "io/file.h"
 #include "io/gfx/font.h"
 #include "io/gfx/video.h"
-#include "io/sound.h"
+//#include "io/sound.h"
 #include "loop.h"
 #include "util.h"
 
 #include <string.h>
-
+#ifdef CASIO
+#include "platforms/casio.h"
+#include <alloca.h>
+#endif
 
 /**
  * Create a JJ1 planet approach sequence.
@@ -49,7 +52,7 @@
 JJ1Planet::JJ1Planet (char * fileName, int previous) {
 
 	File *file;
-	unsigned char *pixels;
+	//unsigned char *pixels;
 	int count;
 
 	try {
@@ -57,7 +60,9 @@ JJ1Planet::JJ1Planet (char * fileName, int previous) {
 		file = new File(fileName, false);
 
 	} catch (int e) {
-
+		#ifdef CASIO
+		casioQuit("JJ1Planet file error");
+		#endif
 		throw e;
 
 	}
@@ -88,18 +93,16 @@ JJ1Planet::JJ1Planet (char * fileName, int previous) {
 	file->loadPalette(palette, false);
 
 	// Load the planet image
-	pixels = file->loadBlock(64 * 55);
-	sprite.setPixels(pixels, 64, 55, 0);
-	delete[] pixels;
-
-
+	//pixels = file->loadBlock(64 * 55);
+	{
+		unsigned char * pixels=(unsigned char *)alloca(64*55);
+		file->loadBlock(64 * 55,pixels);
+		sprite.setPixels(pixels, 64, 55, 0);
+	}
+	//delete[] pixels;
 	delete file;
-
 	return;
-
 }
-
-
 /**
  * Delete the JJ1 planet approach sequence.
  */
@@ -135,7 +138,7 @@ int JJ1Planet::play () {
 
 	tickOffset = globalTicks;
 
-	stopMusic();
+	//stopMusic();
 
 	video.setPalette(palette);
 
@@ -143,10 +146,12 @@ int JJ1Planet::play () {
 
 		if (loop(NORMAL_LOOP) == E_QUIT) return E_QUIT;
 
-		if (controls.release(C_ESCAPE) || controls.wasCursorReleased()) return E_NONE;
-
-		SDL_Delay(T_FRAME);
-
+		if (controls.release(C_ESCAPE)) return E_NONE;
+		#ifdef CASIO
+			casioDelay(T_FRAME);
+		#else
+			SDL_Delay(T_FRAME);
+		#endif
 		video.clearScreen(0);
 
 		if (globalTicks - tickOffset < F2)

@@ -38,11 +38,15 @@
 #include "jj1levelplayer.h"
 
 #include "game/game.h"
-#include "io/sound.h"
+//#include "io/sound.h"
 #include "setup.h"
-
+#include "game/game.h"
+#include "game/gamemode.h"
+#include "player/player.h"
 #include <string.h>
-
+#ifdef CASIO
+	#include "platforms/casio.h"
+#endif
 
 /**
  * Create a JJ1 level player.
@@ -59,7 +63,6 @@ JJ1LevelPlayer::JJ1LevelPlayer (Player* parent, Anim** newAnims, unsigned char s
 		PCO_LEVEL1, PCO_YELLOW, PCO_LEVEL2, PCO_ORANGE, PCO_LEVEL3, PCO_LEVEL4,
 		PCO_SANIM, PCO_LANIM, PCO_LEVEL5, 256};
 	int count, start, length;
-
 
 	player = parent;
 
@@ -80,7 +83,7 @@ JJ1LevelPlayer::JJ1LevelPlayer (Player* parent, Anim** newAnims, unsigned char s
 	// Create the player's palette
 
 	for (count = 0; count < 256; count++)
-		palette[count].r = palette[count].g = palette[count].b = count;
+		palette[count]=((count&248)<<8)|((count&252)<<3)|((count&248)>>3);
 
 
 	// Fur colours
@@ -88,9 +91,10 @@ JJ1LevelPlayer::JJ1LevelPlayer (Player* parent, Anim** newAnims, unsigned char s
 	start = offsets[player->cols[0]];
 	length = offsets[player->cols[0] + 1] - start;
 
-	for (count = 0; count < 16; count++)
-		palette[count + 48].r = palette[count + 48].g = palette[count + 48].b =
-			(count * length / 16) + start;
+	for (count = 0; count < 16; count++){
+		unsigned char tdat=(count * length / 16) + start;
+		palette[count + 48]=((tdat&248)<<8)|((tdat&252)<<3)|((tdat&248)>>3);
+	}
 
 
 	// Bandana colours
@@ -98,33 +102,31 @@ JJ1LevelPlayer::JJ1LevelPlayer (Player* parent, Anim** newAnims, unsigned char s
 	start = offsets[player->cols[1]];
 	length = offsets[player->cols[1] + 1] - start;
 
-	for (count = 0; count < 16; count++)
-		palette[count + 32].r = palette[count + 32].g = palette[count + 32].b =
- 			(count * length / 16) + start;
-
+	for (count = 0; count < 16; count++){
+		unsigned char tdat=(count * length / 16) + start;
+		palette[count + 32]=((tdat&248)<<8)|((tdat&252)<<3)|((tdat&248)>>3);
+ 			
+	}
 
 	// Gun colours
 
 	start = offsets[player->cols[2]];
 	length = offsets[player->cols[2] + 1] - start;
 
-	for (count = 0; count < 9; count++)
-		palette[count + 23].r = palette[count + 23].g = palette[count + 23].b =
-			(count * length / 9) + start;
-
+	for (count = 0; count < 9; count++){
+		unsigned char tdat=(count * length / 9) + start;
+		palette[count + 23]=((tdat&248)<<8)|((tdat&252)<<3)|((tdat&248)>>3);
+	}
 
 	// Wristband colours
 
 	start = offsets[player->cols[3]];
 	length = offsets[player->cols[3] + 1] - start;
 
-	for (count = 0; count < 8; count++)
-		palette[count + 88].r = palette[count + 88].g = palette[count + 88].b =
-			(count * length / 8) + start;
-
-
-	return;
-
+	for (count = 0; count < 8; count++){
+		unsigned char tdat=(count * length / 8) + start;
+		palette[count + 88]=((tdat&248)<<8)|((tdat&252)<<3)|((tdat&248)>>3);		
+	}
 }
 
 
@@ -336,7 +338,7 @@ bool JJ1LevelPlayer::hit (Player *source, unsigned int ticks) {
 
 	}
 
-	playSound(S_OW);
+	//playSound(S_OW);
 
 	if (energy) {
 
@@ -787,7 +789,7 @@ bool JJ1LevelPlayer::touchEvent (JJ1EventType* set, unsigned char gridX, unsigne
 			eventY = gridY;
 			targetY = TTOF(gridY) + (set->magnitude * ITOF(21));
 
-			level->playSound(set->sound);
+			//level->playSound(set->sound);
 
 			break;
 
@@ -829,7 +831,6 @@ bool JJ1LevelPlayer::touchEvent (JJ1EventType* set, unsigned char gridX, unsigne
 			break;
 
 	}
-
 	return false;
 
 }
@@ -921,4 +922,3 @@ void JJ1LevelPlayer::receive (unsigned char *buffer) {
 	return;
 
 }
-

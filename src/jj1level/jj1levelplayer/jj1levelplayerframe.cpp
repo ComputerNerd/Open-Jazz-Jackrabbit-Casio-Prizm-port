@@ -42,7 +42,7 @@
 #include "io/controls.h"
 #include "io/gfx/font.h"
 #include "io/gfx/video.h"
-#include "io/sound.h"
+//#include "io/sound.h"
 #include "util.h"
 
 
@@ -318,7 +318,7 @@ void JJ1LevelPlayer::control (unsigned int ticks) {
 
 			event = JJ1PE_NONE;
 
-			playSound(S_JUMPA);
+			//playSound(S_JUMPA);
 
 		} else if (((event == JJ1PE_NONE) || (event == JJ1PE_PLATFORM)) &&
 			!player->pcontrols[C_JUMP]) {

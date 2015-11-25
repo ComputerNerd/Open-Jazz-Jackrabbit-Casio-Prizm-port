@@ -89,16 +89,17 @@ class Level {
 	protected:
 		Game*          game;
 		PaletteEffect* paletteEffects; ///< Palette effects in use while playing the level
-		SDL_Color      palette[256]; ///< Palette in use while playing the level
-		int            sprites; ///< The number of sprite that have been loaded
-		unsigned int   tickOffset; ///< Level time offset from system time
-		unsigned int   steps; ///< Number of steps taken
-		unsigned int   prevTicks; ///< Time the last visual update started
-		unsigned int   ticks; ///< Current time
-		unsigned int   endTime; ///< Tick at which the level will end
-		float          smoothfps; ///< Smoothed FPS counter
+		unsigned short	palette[256]; ///< Palette in use while playing the level
+		int				sprites; ///< The number of sprite that have been loaded
+		unsigned int	tickOffset; ///< Level time offset from system time
+		unsigned int	steps; ///< Number of steps taken
+		unsigned int	prevTicks; ///< Time the last visual update started
+		unsigned int	ticks; ///< Current time
+		unsigned int	endTime; ///< Tick at which the level will end
+		unsigned	smoothfps; ///< Smoothed FPS counter
+		unsigned elapsed;
+		unsigned elapsedcnt;
 		int            items; ///< Number of items to be collected
-		bool           multiplayer; ///< Whether or not this is a multiplayer game
 		bool           paused; ///< Whether or not the level is paused
 		LevelStage     stage; ///< Level stage
 		int            stats; ///< Which statistics to display on-screen, see #LevelStats
@@ -120,7 +121,6 @@ class Level {
 		void         addTimer (int seconds);
 		LevelStage   getStage ();
 		void         setStage (LevelStage stage);
-		virtual void receive  (unsigned char* buffer) = 0;
 
 };
 

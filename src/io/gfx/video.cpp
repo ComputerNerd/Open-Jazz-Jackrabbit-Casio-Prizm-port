@@ -31,116 +31,37 @@
 #include "paletteeffects.h"
 #include "video.h"
 
-#ifdef SCALE
-	#include "io/gfx/scale2x/scalebit.h"
-#endif
 
 #include "util.h"
 
 #include <string.h>
-
-
-/**
- * Creates a surface.
- *
- * @param pixels Pixel data to copy into the surface. Can be NULL.
- * @param width Width of the pixel data and of the surface to be created
- * @param height Height of the pixel data and of the surface to be created
- *
- * @return The completed surface
- */
-SDL_Surface* createSurface (unsigned char * pixels, int width, int height) {
-
-	SDL_Surface *ret;
-	int y;
-
-	// Create the surface
-	ret = SDL_CreateRGBSurface(SDL_HWSURFACE, width, height, 8, 0, 0, 0, 0);
-
-	// Set the surface's palette
-	video.restoreSurfacePalette(ret);
-
-	if (pixels) {
-
-		// Upload pixel data to the surface
-		if (SDL_MUSTLOCK(ret)) SDL_LockSurface(ret);
-
-		for (y = 0; y < height; y++)
-			memcpy(((unsigned char *)(ret->pixels)) + (ret->pitch * y),
-				pixels + (width * y), width);
-
-		if (SDL_MUSTLOCK(ret)) SDL_UnlockSurface(ret);
-
-	}
-
-	return ret;
-
-}
-
+#ifdef CASIO
+	#include <fxcg/display.h>
+	#include "platforms/casio.h"
+#endif
+struct miniSurface canvas;
 
 /**
  * Create the video output object.
  */
-Video::Video () {
-
+Video::Video(){
 	int count;
-
-	screen = NULL;
-
 #ifdef SCALE
 	scaleFactor = 1;
 #endif
 
 	// Generate the logical palette
 	for (count = 0; count < 256; count++)
-		logicalPalette[count].r = logicalPalette[count].g =
- 			logicalPalette[count].b = count;
-
-	currentPalette = logicalPalette;
-
+		currentPalette[count]=((count&248)<<8)|((count&252)<<3)|((count&248)>>3);
+	canvas.pix=0;
 	return;
 
 }
-
-
-/**
- * Find the maximum horizontal and vertical resolutions.
- */
-void Video::findMaxResolution () {
-
-#if defined(CAANOO) ||defined(WIZ) || defined(GP2X) || defined(DINGOO)
-	maxW = 320;
-	maxH = 240;
-#else
-	SDL_Rect **resolutions;
-	int count;
-
-	resolutions = SDL_ListModes(NULL, fullscreen? FULLSCREEN_FLAGS: WINDOWED_FLAGS);
-
-	if (resolutions == (SDL_Rect **)(-1)) {
-
-		maxW = MAX_SW;
-		maxH = MAX_SH;
-
-	} else {
-
-		maxW = SW;
-		maxH = SH;
-
-		for (count = 0; resolutions[count] != NULL; count++) {
-
-			if (resolutions[count]->w > maxW) maxW = resolutions[count]->w;
-			if (resolutions[count]->h > maxH) maxH = resolutions[count]->h;
-
-		}
-
-		if (maxW > MAX_SW) maxW = MAX_SW;
-		if (maxH > MAX_SH) maxH = MAX_SH;
-	}
-#endif
-
-	return;
+Video::~Video(){
+	freeobj(canvasID);
 }
+
+
 
 
 /**
@@ -152,26 +73,27 @@ void Video::findMaxResolution () {
  *
  * @return Success
  */
-bool Video::init (int width, int height, bool startFullscreen) {
-
+bool Video::init (bool startFullscreen) {
+	int count;
+	for (count = 0; count < 256;++count)
+		currentPalette[count]=((count&248)<<8)|((count&252)<<3)|((count&248)>>3);
 	fullscreen = startFullscreen;
-
-	if (fullscreen) SDL_ShowCursor(SDL_DISABLE);
-
-	if (!resize(width, height)) {
-
+	#ifndef CASIO
+		if (fullscreen) SDL_ShowCursor(SDL_DISABLE);
+	#endif
+	if (!resize()) {
+		#ifndef CASIO
 		logError("Could not set video mode", SDL_GetError());
-
+		#endif
 		return false;
 
 	}
-
-	SDL_WM_SetCaption("OpenJazz", NULL);
-
-	findMaxResolution();
-
+	#ifndef CASIO
+		SDL_WM_SetCaption("OpenJazz", NULL);
+	#endif
+	addobj(384*216,&canvasID);
+	initMiniSurface(&canvas,objs[canvasID].ptr,384,216);
 	return true;
-
 }
 
 
@@ -183,10 +105,8 @@ bool Video::init (int width, int height, bool startFullscreen) {
  *
  * @return Success
  */
-bool Video::resize (int width, int height) {
+bool Video::resize (void) {
 
-	screenW = width;
-	screenH = height;
 
 #ifdef SCALE
 	if (canvas != screen) SDL_FreeSurface(canvas);
@@ -194,39 +114,17 @@ bool Video::resize (int width, int height) {
 
 #if defined(CAANOO) || defined(WIZ) || defined(GP2X) || defined(DINGOO)
 	screen = SDL_SetVideoMode(320, 240, 8, FULLSCREEN_FLAGS);
+#elif defined(CASIO)
+//Do nothing
 #else
-	screen = SDL_SetVideoMode(screenW, screenH, 8, fullscreen? FULLSCREEN_FLAGS: WINDOWED_FLAGS);
+	screen = SDL_SetVideoMode(384, 216, 16, fullscreen? FULLSCREEN_FLAGS: WINDOWED_FLAGS);
 #endif
-
+	#ifndef CASIO
 	if (!screen) return false;
-
-
-#ifdef SCALE
-	// Check that the scale will fit in the current resolution
-	while ( ((screenW/SW < scaleFactor) || (screenH/SH < scaleFactor)) && (scaleFactor > 1) ) {
-
-		scaleFactor--;
-
-	}
-
-	if (scaleFactor > 1) {
-
-		canvasW = screenW / scaleFactor;
-		canvasH = screenH / scaleFactor;
-		canvas = createSurface(NULL, canvasW, canvasH);
-
-	} else {
-#endif
-
-		canvasW = screenW;
-		canvasH = screenH;
-		canvas = screen;
-
-#ifdef SCALE
-	}
-#endif
-
-#if !defined(WIZ) && !defined(GP2X)
+	#endif
+		//canvasW = screenW;
+		//canvasH = screenH;
+#if !defined(WIZ) && !defined(GP2X) && !defined(CASIO)
 	expose();
 #endif
 
@@ -252,29 +150,16 @@ bool Video::resize (int width, int height) {
  *
  * @param palette The new palette
  */
-void Video::setPalette (SDL_Color *palette) {
-
-	// Make palette changes invisible until the next draw. Hopefully.
-	clearScreen(SDL_MapRGB(screen->format, 0, 0, 0));
-	flip(0, NULL);
-
-	SDL_SetPalette(screen, SDL_PHYSPAL, palette, 0, 256);
-	currentPalette = palette;
-
-	return;
-
+void Video::setPalette (unsigned short *palette) {
+	memcpy(currentPalette,palette,256*sizeof(unsigned short));
 }
-
-
 /**
  * Returns the current display palette.
  *
  * @return The current display palette
  */
-SDL_Color* Video::getPalette () {
-
+unsigned short * Video::getPalette () {
 	return currentPalette;
-
 }
 
 
@@ -285,109 +170,13 @@ SDL_Color* Video::getPalette () {
  * @param first The index of the first colour in both the display palette and the specified palette
  * @param amount The number of colours
  */
-void Video::changePalette (SDL_Color *palette, unsigned char first, unsigned int amount) {
-
-	SDL_SetPalette(screen, SDL_PHYSPAL, palette, first, amount);
-
-	return;
-
+void Video::changePalette (unsigned short *palette, unsigned char first, unsigned int amount) {
+	//SDL_SetPalette(screen, SDL_PHYSPAL, palette, first, amount);
+	//return;
+	//puts("WOOPS!");//This function should not be called ever
+	memcpy(finalPalette+first,palette+first,amount*sizeof(unsigned short));
 }
 
-
-/**
- * Restores a surface's palette.
- *
- * @param surface Surface with a modified palette
- */
-void Video::restoreSurfacePalette (SDL_Surface* surface) {
-
-	SDL_SetPalette(surface, SDL_LOGPAL, logicalPalette, 0, 256);
-
-	return;
-
-}
-
-
-/**
- * Returns the maximum possible screen width.
- *
- * @return The maximum width
- */
-int Video::getMaxWidth () {
-
-	return maxW;
-
-}
-
-
-/**
- * Returns the maximum possible screen height.
- *
- * @return The maximum height
- */
-int Video::getMaxHeight () {
-
-	return maxH;
-
-}
-
-
-/**
- * Returns the current width of the window or screen.
- *
- * @return The width
- */
-int Video::getWidth () {
-
-	return screenW;
-
-}
-
-
-/**
- * Returns the current height of the window or screen.
- *
- * @return The height
- */
-int Video::getHeight () {
-
-	return screenH;
-
-}
-
-
-#ifdef SCALE
-/**
- * Returns the current scaling factor.
- *
- * @return The scaling factor
- */
-int Video::getScaleFactor () {
-
-	return scaleFactor;
-
-}
-
-
-/**
- * Sets the scaling factor.
- *
- * @param newScaleFactor The new scaling factor
- */
-int Video::setScaleFactor (int newScaleFactor) {
-
-	if ((SW * newScaleFactor <= screenW) && (SH * newScaleFactor <= screenH)) {
-
-		scaleFactor = newScaleFactor;
-
-		if (screen) resize(screenW, screenH);
-
-	}
-
-	return scaleFactor;
-
-}
-#endif
 
 #ifndef FULLSCREEN_ONLY
 /**
@@ -408,13 +197,13 @@ bool Video::isFullscreen () {
  */
 void Video::expose () {
 
-	SDL_SetPalette(screen, SDL_LOGPAL, logicalPalette, 0, 256);
-	SDL_SetPalette(screen, SDL_PHYSPAL, currentPalette, 0, 256);
+	//SDL_SetPalette(screen, SDL_LOGPAL, logicalPalette, 0, 256);
+	//SDL_SetPalette(screen, SDL_PHYSPAL, currentPalette, 0, 256);
 
 	return;
 
 }
-
+#ifndef CASIO
 
 /**
  * Update video based on a system event.
@@ -436,11 +225,9 @@ void Video::update (SDL_Event *event) {
 
 				if (fullscreen) SDL_ShowCursor(SDL_DISABLE);
 
-				resize(screenW, screenH);
+				resize();
 
 				if (!fullscreen) SDL_ShowCursor(SDL_ENABLE);
-
-				findMaxResolution();
 
 			}
 
@@ -448,7 +235,7 @@ void Video::update (SDL_Event *event) {
 
 		case SDL_VIDEORESIZE:
 
-			resize(event->resize.w, event->resize.h);
+			resize();
 
 			break;
 
@@ -464,8 +251,37 @@ void Video::update (SDL_Event *event) {
 	return;
 
 }
+#endif
+#ifdef CASIO
+#define LCD_GRAM 0x202
+#define LCD_BASE	0xB4000000
+#define VRAM_ADDR 0xA8000000
+// Module Stop Register 0
+#define MSTPCR0	(volatile unsigned *)0xA4150030
+// DMA0 operation register
+#define DMA0_DMAOR	(volatile unsigned short*)0xFE008060
+#define DMA0_SAR_0	(volatile unsigned *)0xFE008020
+#define DMA0_DAR_0  (volatile unsigned *)0xFE008024
+#define DMA0_TCR_0	(volatile unsigned *)0xFE008028
+#define DMA0_CHCR_0	(volatile unsigned *)0xFE00802C
 
+static void DoDMAlcdNonblock(void){
+	Bdisp_WriteDDRegister3_bit7(1);
+	Bdisp_DefineDMARange(6,389,0,215);
+	Bdisp_DDRegisterSelect(LCD_GRAM);
 
+	*MSTPCR0&=~(1<<21);//Clear bit 21
+	*DMA0_CHCR_0&=~1;//Disable DMA on channel 0
+	*DMA0_DMAOR=0;//Disable all DMA
+	*DMA0_SAR_0=VRAM_ADDR&0x1FFFFFFF;//Source address is VRAM
+	*DMA0_DAR_0=LCD_BASE&0x1FFFFFFF;//Desination is LCD
+	*DMA0_TCR_0=(216*384)/16;//Transfer count bytes/32
+	*DMA0_CHCR_0=0x00101400;
+	*DMA0_DMAOR|=1;//Enable DMA on all channels
+	*DMA0_DMAOR&=~6;//Clear flags
+	*DMA0_CHCR_0|=1;//Enable channel0 DMA
+}
+#endif
 /**
  * Draw graphics to screen.
  *
@@ -473,50 +289,52 @@ void Video::update (SDL_Event *event) {
  * @param paletteEffects Palette effects to use
  */
 void Video::flip (int mspf, PaletteEffect* paletteEffects) {
-
-	SDL_Color shownPalette[256];
-
-#ifdef SCALE
-	if (canvas != screen) {
-
-		// Copy everything that has been drawn so far
-		scale(scaleFactor,
-			screen->pixels, screen->pitch,
-			canvas->pixels, canvas->pitch,
-			screen->format->BytesPerPixel, canvas->w, canvas->h);
-
-	}
-#endif
-
+	#ifndef CASIO
+	if(SDL_MUSTLOCK(screen)) SDL_LockSurface(screen);
+	#endif
+	unsigned int x,y;
+	#ifdef CASIO
+		unsigned short *o=(unsigned short *)0xA8000000;
+		DmaWaitNext();
+	#else
+		unsigned short * o=(unsigned short *)screen->pixels;
+	#endif
+	unsigned char * i=canvas.pix;
+	y=canvasH;
 	// Apply palette effects
 	if (paletteEffects) {
-
+		unsigned short shownPalette[256];
 		/* If the palette is being emulated, compile all palette changes and
 		apply them all at once.
 		If the palette is being used directly, apply all palette effects
 		directly. */
-
+		memcpy(shownPalette, currentPalette, sizeof(unsigned short) * 256);
 		if (fakePalette) {
-
-			memcpy(shownPalette, currentPalette, sizeof(SDL_Color) * 256);
-
 			paletteEffects->apply(shownPalette, false, mspf);
-
-			SDL_SetPalette(screen, SDL_PHYSPAL, shownPalette, 0, 256);
-
+			//SDL_SetPalette(screen, SDL_PHYSPAL, shownPalette, 0, 256);
 		} else {
-
 			paletteEffects->apply(shownPalette, true, mspf);
-
 		}
-
+		while(y--){
+			x=canvasW;
+			while(x--)
+				*o++=shownPalette[*i++];
+		}
+	}else{
+		while(y--){
+			x=canvasW;
+			while(x--)
+				*o++=currentPalette[*i++];
+		}
 	}
-
 	// Show what has been drawn
-	SDL_Flip(screen);
-
-	return;
-
+	#ifdef CASIO
+		//Bdisp_PutDisp_DD();
+		DoDMAlcdNonblock();
+	#else
+		if(SDL_MUSTLOCK(screen)) SDL_UnlockSurface(screen);
+		SDL_Flip(screen);
+	#endif
 }
 
 
@@ -531,7 +349,7 @@ void Video::clearScreen (int index) {
 	// always 240 lines cleared to black
 	memset(video.screen->pixels, index, 320*240);
 #else
-	SDL_FillRect(canvas, NULL, index);
+	memset(canvas.pix,index,canvasW*canvasH);
 #endif
 
 	return;
@@ -549,17 +367,30 @@ void Video::clearScreen (int index) {
  * @param index Index of the colour to use
  */
 void drawRect (int x, int y, int width, int height, int index) {
-
-	SDL_Rect dst;
-
-	dst.x = x;
-	dst.y = y;
-	dst.w = width;
-	dst.h = height;
-
-	SDL_FillRect(canvas, &dst, index);
-
-	return;
-
+	if(x<0){
+		width+=x;
+		x=0;
+	}
+	if(y<0){
+		height+=y;
+		y=0;
+	}
+	if(x>canvasW)
+		return;
+	if(y>canvasH)
+		return;
+	if(width<1)
+		return;
+	if(height<1)
+		return;
+	if(width>(canvasW-x))
+		width=canvasW-x;
+	if(height>(canvasH-y))
+		height=canvasH-y;
+	unsigned char * p=canvas.pix+x+(y*canvasW);
+	while(height--){
+		memset(p,index,width);
+		p+=canvasW;
+	}
 }
 

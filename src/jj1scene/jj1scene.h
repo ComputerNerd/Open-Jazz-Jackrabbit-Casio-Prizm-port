@@ -28,10 +28,16 @@
 
 
 #include "io/file.h"
-
+#ifdef CASIO
+typedef struct{
+	short x, y;
+	unsigned short w, h;
+} SDL_Rect;
+#else
 #include <SDL/SDL.h>
-
-
+#endif
+#include "mem.h"
+#include "surface.h"
 // Enums
 
 /**
@@ -143,10 +149,10 @@ class JJ1ScenePage {
 		int                pageTime;
 		JJ1SceneText       texts[100];
 		int                nTexts;
-		char*              musicFile;
+		//char*              musicFile;
 		int                paletteIndex;
 		int				   askForYesNo;
-		int				   stopMusic;
+		//int				   stopMusic;
 
 		JJ1ScenePage  ();
 		~JJ1ScenePage ();
@@ -157,8 +163,9 @@ class JJ1ScenePage {
 class JJ1SceneImage {
 
 	public:
-		JJ1SceneImage* next;
-		SDL_Surface* image;
+		JJ1SceneImage*		next;
+		struct miniSurface	image;
+		objid_t ramid=INVALID_OBJ;
 		int id;
 
 		JJ1SceneImage  (JJ1SceneImage* newNext);
@@ -171,7 +178,7 @@ class JJ1ScenePalette {
 
 	public:
 		JJ1ScenePalette* next;
-		SDL_Color palette[256];
+		unsigned short palette[256];
 		int id;
 
 		JJ1ScenePalette  (JJ1ScenePalette* newNext);
@@ -197,7 +204,7 @@ class JJ1SceneFrame {
 		unsigned char* frameData;
 		int            frameSize;
 		unsigned int   frameType;
-		int            soundId;
+		//int            soundId;
 
 		JJ1SceneFrame  (int frameType, unsigned char* frameData, int frameSize);
 		~JJ1SceneFrame ();
@@ -212,10 +219,11 @@ class JJ1SceneAnimation {
 		JJ1SceneFrame*      sceneFrames;
 		JJ1SceneFrame*      lastFrame;
 
-		SDL_Surface*       background;
+		struct miniSurface	background;
+		objid_t				bgidram=INVALID_OBJ;
 		int id;
 		int noSounds;
-		char soundNames[16][10];
+		//char soundNames[16][10];
 		int frames;
 		int reverseAnimation;
 
@@ -237,8 +245,8 @@ class JJ1Scene {
 		int                nFonts;
 		unsigned short int scriptItems;
 		unsigned short int dataItems;
-		signed long int*   scriptStarts;
-		signed long int*   dataOffsets;
+		signed int*   scriptStarts;
+		signed int*   dataOffsets;
 
 		/// Scripts all information needed to render script pages, text etc
 		JJ1ScenePage*      pages;

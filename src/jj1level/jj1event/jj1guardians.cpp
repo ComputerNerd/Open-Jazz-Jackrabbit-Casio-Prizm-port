@@ -210,7 +210,6 @@ MedGuardian::MedGuardian(unsigned char gX, unsigned char gY) : Guardian(gX, gY) 
  * @return Remaining event
  */
 JJ1Event* MedGuardian::step(unsigned int ticks) {
-
 	fixed sin = fSin(ticks / 2);
 	fixed cos = fCos(ticks / 2);
 
@@ -439,9 +438,6 @@ void MedGuardian::draw(unsigned int ticks, int change) {
 		stageAnim = anim;
 	else
 		stageAnim = level->getAnim(set->anims[E_LFINISHANIM | (animType & 1)] & 0x7F);
-
-
-	stageAnim->setFrame(frame + gridX + gridY, true);
 
 	if (ticks < flashTime) stageAnim->flashPalette(0);
 

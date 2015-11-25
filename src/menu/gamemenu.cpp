@@ -34,70 +34,82 @@
 #include "io/controls.h"
 #include "io/gfx/font.h"
 #include "io/gfx/video.h"
-#include "io/sound.h"
+//#include "io/sound.h"
 #include "loop.h"
 #include "util.h"
-
-
+#include "mem.h"
+#include "surface.h"
+#ifdef CASIO
+	#include "platforms/casio.h"
+	#include <fxcg/keyboard.h>
+	#include <fxcg/display.h>
+	#include <fxcg/misc.h>
+#endif
 /**
  * Create the game menu.
  *
  * @param file File containing menu graphics
  */
-GameMenu::GameMenu (File *file) {
-
-	unsigned char pixel;
-	int count, col;
-
-
+void GameMenu::loadDifficulty(File *file){
 	// Load the difficulty graphics
+	#ifdef CASIO
+		drawStrL(1,"Loading difficulty");
+	#endif
 	file->loadPalette(menuPalette);
-	difficultyScreen = file->loadSurface(SW, SH);
-	SDL_SetColorKey(difficultyScreen, SDL_SRCCOLORKEY, 0);
-
+	//difficultyScreen = file->loadSurface(SW, SH);
+	addobj(SW*SH,&difficultyScreenid);
+	file->loadMiniSurface(SW,SH,(unsigned char *)objs[difficultyScreenid].ptr,&difficultyScreen);
+	//SDL_SetColorKey(difficultyScreen, SDL_SRCCOLORKEY, 0);
+	setColKey(&difficultyScreen,0);
 	// Default difficulty setting
-	difficulty = 1;
-
-
+}
+void GameMenu::loadEpisodes(File *file){
+	int count, col;
 	// Load the episode pictures (max. 10 episodes + bonus level)
-
 	// Load their palette
+	#ifdef CASIO
+		drawStrL(1,"Loading thumbnails");
+	#endif
 	file->loadPalette(palette);
-
 	// Generate a greyscale mapping
-	for (count = 0; count < 256; count++) {
+	count=256;
+	while(count--){
 
-		col = ((palette[count].r >> 1) + (palette[count].g << 1) + (palette[count].b >> 1)) >> 3;
+		col = ((((palette[count]>>11)<<3) >> 1) + ((((palette[count]>>6)&63)<<2) << 1) + (((palette[count]&31)<<3) >> 1)) >> 3;
 
 		if (col > 79) col = 79;
 
-		greyPalette[count].r = greyPalette[count].g = greyPalette[count].b = col;
+		greyPalette[count]=nearestIndex(col,col,col,video.currentPalette,256);
 
 	}
-
 	episodes = 11;
-
-	for (count = 0; count < 11; count++) {
-
-		episodeScreens[count] = file->loadSurface(134, 110);
-
+	
+	for (count = 0; count < 11; count++){
+		//episodeScreens[count] = file->loadSurface(134, 110);
+		#ifdef CASIO
+			char tMp[8];
+			itoa(count,(unsigned char *)tMp);
+			drawStrL(2,(const char *)tMp);
+		#endif
+		addobj(134*110,&episodeScreensid[count]);
+		file->loadMiniSurface(134,110,(unsigned char *)objs[episodeScreensid[count]].ptr,&episodeScreens[count]);
 		if (file->tell() >= file->getSize()) {
-
 			episodes = ++count;
-
 			for (; count < 11; count++) {
-
-				pixel = 0;
-				episodeScreens[count] = createSurface(&pixel, 1, 1);
-
+				episodeScreensid[count]=INVALID_OBJ;
+				initMiniSurface(&episodeScreens[count],NULL,1,1);
+				//pixel = 0;
+				//episodeScreens[count] = createSurface(&pixel, 1, 1);
 			}
-
 		}
-
 	}
-
-	return;
-
+}
+GameMenu::GameMenu (File *file) {
+	//unsigned char pixel;
+	
+	loadDifficulty(file);
+	difficulty = 1;
+	loadEpisodes(file);
 }
 
 
@@ -105,12 +117,15 @@ GameMenu::GameMenu (File *file) {
  * Delete the game menu.
  */
 GameMenu::~GameMenu () {
+	int count=11;
+	while(count--){
+		if(episodeScreensid[count]!=INVALID_OBJ)
+			freeobj(episodeScreensid[count]);
+	}
 
-	int count;
-
-	for (count = 0; count < 11; count++) SDL_FreeSurface(episodeScreens[count]);
-
-	SDL_FreeSurface(difficultyScreen);
+	if(difficultyScreenid!=INVALID_OBJ)
+		freeobj(difficultyScreenid);
+	//SDL_FreeSurface(difficultyScreen);
 
 	return;
 
@@ -126,12 +141,11 @@ GameMenu::~GameMenu () {
  * @return Error code
  */
 int GameMenu::playNewGame (GameModeType mode, char* firstLevel) {
-
+	
 	Game* game;
 	int ret;
 
-	playSound(S_ORB);
-
+	//playSound(S_ORB);
 	if (mode == M_SINGLE) {
 
 		try {
@@ -146,21 +160,8 @@ int GameMenu::playNewGame (GameModeType mode, char* firstLevel) {
 
 		}
 
-	} else {
-
-		try {
-
-			game = new ServerGame(mode, firstLevel, difficulty);
-
-		} catch (int e) {
-
-			if (message("COULD NOT CREATE SERVER") == E_QUIT) return E_QUIT;
-
-			return e;
-
-		}
-
-	}
+	}else
+		if (message("Not supported") == E_QUIT) return E_QUIT;
 
 
 	// Play the level(s)
@@ -169,7 +170,7 @@ int GameMenu::playNewGame (GameModeType mode, char* firstLevel) {
 
 	delete game;
 
-	if (ret != E_QUIT) playMusic("menusng.psm");
+	//if (ret != E_QUIT) playMusic("menusng.psm");
 
 	switch (ret) {
 
@@ -196,14 +197,20 @@ int GameMenu::playNewGame (GameModeType mode, char* firstLevel) {
  *
  * @return Error code
  */
+static const char *const optionsDifficulty[4] = {"easy", "medium", "hard", "turbo"};
 int GameMenu::newGameDifficulty (GameModeType mode, char* firstLevel) {
 
-	const char *options[4] = {"easy", "medium", "hard", "turbo"};
-	SDL_Rect src, dst;
+	
+	//SDL_Rect src, dst;
+	short src[4]; //x y w h
 	int x, y, count;
-
+	
+	if(difficultyScreenid==INVALID_OBJ){
+		File * file=skipLogos();
+		loadDifficulty(file);
+		delete file;
+	}
 	video.setPalette(menuPalette);
-
 	while (true) {
 
 		if (loop(NORMAL_LOOP) == E_QUIT) return E_QUIT;
@@ -214,54 +221,52 @@ int GameMenu::newGameDifficulty (GameModeType mode, char* firstLevel) {
 
 		if (controls.release(C_DOWN)) difficulty = (difficulty + 1) % 4;
 
-		if (controls.release(C_ENTER)) return playNewGame(mode, firstLevel);
-
-		if (controls.getCursor(x, y)) {
-
-			if ((x < 100) && (y >= canvasH - 12) && controls.wasCursorReleased()) return E_NONE;
-
-			x -= canvasW >> 2;
-			y -= (canvasH >> 1) - 32;
-
-			if ((x >= 0) && (x < 256) && (y >= 0) && (y < 64)) {
-
-				difficulty = y >> 4;
-
-				if (controls.wasCursorReleased()) return playNewGame(mode, firstLevel);
-
+		if (controls.release(C_ENTER)){
+			if(difficultyScreenid!=INVALID_OBJ){
+				freeobj(difficultyScreenid);
+				difficultyScreenid=INVALID_OBJ;
 			}
-
+			return playNewGame(mode, firstLevel);
 		}
 
-		SDL_Delay(T_FRAME);
-
+		/*if (controls.getCursor(x, y)) {
+			if ((x < 100) && (y >= canvasH - 12) && controls.wasCursorReleased()) return E_NONE;
+			x -= canvasW >> 2;
+			y -= (canvasH >> 1) - 32;
+			if ((x >= 0) && (x < 256) && (y >= 0) && (y < 64)) {
+				difficulty = y >> 4;
+				if (controls.wasCursorReleased()) return playNewGame(mode, firstLevel);
+			}
+		}*/
+		#ifdef CASIO
+			//casioDelay(T_FRAME);
+		#else
+			SDL_Delay(T_FRAME);
+		#endif
 		video.clearScreen(0);
 
 		for (count = 0; count < 4; count++) {
 
 			if (count == difficulty) fontmn2->mapPalette(240, 8, 114, 16);
 
-			fontmn2->showString(options[count], canvasW >> 2,
+			fontmn2->showString(optionsDifficulty[count], canvasW >> 2,
 				(canvasH >> 1) + (count << 4) - 32);
 
 			if (count == difficulty) fontmn2->restorePalette();
 
 		}
 
-		src.x = (difficulty & 1) * 160;
-		src.y = (difficulty & 2) * 50;
-		src.w = 160;
-		src.h = 100;
-		dst.x = (canvasW >> 1) - 40;
-		dst.y = (canvasH >> 1) - 50;
-		SDL_BlitSurface(difficultyScreen, &src, canvas, &dst);
-
+		src[0] = (difficulty & 1) * 160;
+		src[1] = (difficulty & 2) * 50;
+		src[2] = 160;
+		src[3] = 100;
+		//dst.x = (canvasW >> 1) - 40;
+		//dst.y = (canvasH >> 1) - 50;
+		//SDL_BlitSurface(difficultyScreen, &src, canvas, &dst);
+		blitPartToCanvas(&difficultyScreen,(canvasW >> 1) - 40,(canvasH >> 1) - 50,src);
 		showEscString();
-
 	}
-
 	return E_NONE;
-
 }
 
 
@@ -274,23 +279,15 @@ int GameMenu::newGameDifficulty (GameModeType mode, char* firstLevel) {
  *
  * @return Error code
  */
-int GameMenu::newGameDifficulty (GameModeType mode, int levelNum, int worldNum) {
-
+int GameMenu::newGameDifficulty(GameModeType mode, int levelNum, int worldNum){
 	char* firstLevel;
 	int ret;
-
 	if (levelNum == -1) firstLevel = createFileName(F_BONUSMAP, worldNum);
 	else firstLevel = createFileName(F_LEVEL, levelNum, worldNum);
-
 	ret = newGameDifficulty(mode, firstLevel);
-
 	delete[] firstLevel;
-
 	return ret;
-
 }
-
-
 /**
  * Run the game loading menu.
  *
@@ -332,7 +329,7 @@ int GameMenu::loadGame () {
 
 		if (controls.release(C_ENTER)) {
 
-			playSound(S_ORB);
+			//playSound(S_ORB);
 
 			if (newGameDifficulty(M_SINGLE, levelNum, worldNum) == E_QUIT) return E_QUIT;
 
@@ -340,18 +337,17 @@ int GameMenu::loadGame () {
 
 		}
 
-		if (controls.getCursor(x, y)) {
-
+		/*if (controls.getCursor(x, y)) {
 			if ((x < 100) && (y >= canvasH - 12) && controls.wasCursorReleased()) return E_NONE;
-
 			if (y < (canvasH >> 1)) option = 0;
 			else option = 1;
+		}*/
 
-		}
-
-
-		SDL_Delay(T_FRAME);
-
+		#ifdef CASIO
+			//casioDelay(T_FRAME);
+		#else
+			SDL_Delay(T_FRAME);
+		#endif
 		video.clearScreen(15);
 
 		if (option == 0) fontmn2->mapPalette(240, 8, 114, 16);
@@ -410,6 +406,29 @@ int GameMenu::newGameLevel (GameModeType mode) {
 
 }
 
+File * GameMenu::skipLogos(){
+	File *file;
+	// Load the menu graphics
+	try {
+		file = new File(F_MENU, false);
+	} catch (int e) {
+		//SDL_FreeSurface(logo);
+		throw e;
+	}
+	if (file->getSize() > 200000){
+		file->skipRLE();
+		file->skipRLE();
+		file->skipRLE();
+		file->skipRLE();
+		file->skipRLE();
+		file->skipRLE();
+	} else{
+		file->skipRLE();
+		file->skipRLE();
+		file->skipRLE();
+	}
+	return file;
+}
 
 /**
  * Run the appropriate menu for the given episode selection.
@@ -420,10 +439,13 @@ int GameMenu::newGameLevel (GameModeType mode) {
  * @return Error code
  */
 int GameMenu::selectEpisode (GameModeType mode, int episode) {
-
 	int worldNum;
-
-	playSound(S_ORB);
+	int count=11;
+	while(count--){
+		if(episodeScreensid[count]!=INVALID_OBJ)
+			freeobj(episodeScreensid[count]);
+	}
+	//playSound(S_ORB);
 
 	if (episode < 10) {
 
@@ -438,13 +460,20 @@ int GameMenu::selectEpisode (GameModeType mode, int episode) {
 		if (newGameDifficulty(mode, -1, 0) == E_QUIT) return E_QUIT;
 
 	} else {
-
+		freeobj(difficultyScreenid);
 		if (newGameLevel(mode) == E_QUIT) return E_QUIT;
 
 	}
-
 	video.setPalette(palette);
-
+	File * file=skipLogos();
+	if(difficultyScreenid==INVALID_OBJ)
+		loadDifficulty(file);
+	else{
+		file->skipRLE();
+		file->skipRLE();
+	}
+	loadEpisodes(file);
+	delete file;
 	return E_NONE;
 
 }
@@ -457,14 +486,15 @@ int GameMenu::selectEpisode (GameModeType mode, int episode) {
  *
  * @return Error code
  */
-int GameMenu::newGameEpisode (GameModeType mode) {
-
-	const char *options[12] = {"episode 1", "episode 2", "episode 3",
+static const char *const optionsEpisode[12] = {"episode 1", "episode 2", "episode 3",
 		"episode 4", "episode 5", "episode 6", "episode a", "episode b",
 		"episode c", "episode x", "bonus stage", "specific level"};
+int GameMenu::newGameEpisode (GameModeType mode) {
+
+	
 	bool exists[12];
 	char *check;
-	SDL_Rect dst;
+	//SDL_Rect dst;
 	int episode, count, x, y;
 
 	video.setPalette(palette);
@@ -479,8 +509,8 @@ int GameMenu::newGameEpisode (GameModeType mode) {
 		exists[count] = fileExists(check);
 		delete[] check;
 
-		if (exists[count]) video.restoreSurfacePalette(episodeScreens[count]);
-		else SDL_SetPalette(episodeScreens[count], SDL_LOGPAL, greyPalette, 0, 256);
+		/*if (exists[count]) episodeScreens[count].flags&=~(miniS_useMap);
+		else episodeScreens[count].flags|=miniS_useMap;*/
 
 	}
 
@@ -514,45 +544,38 @@ int GameMenu::newGameEpisode (GameModeType mode) {
 
 		}
 
-		if (controls.getCursor(x, y)) {
-
+		/*if (controls.getCursor(x, y)) {
 			if ((x >= canvasW - 100) && (y >= canvasH - 12) && controls.wasCursorReleased()) return E_NONE;
-
 			x -= canvasW >> 3;
 			y -= (canvasH >> 1) - 92;
-
 			if ((x >= 0) && (x < 256) && (y >= 0) && (y < 192)) {
-
 				episode = y >> 4;
-
 				if (controls.wasCursorReleased() && exists[episode]) {
-
 					count = selectEpisode(mode, episode);
-
 					if (count < 0) return count;
-
 				}
-
 			}
+		}*/
 
-		}
-
-
-		SDL_Delay(T_FRAME);
-
+		#ifdef CASIO
+			//casioDelay(T_FRAME);
+		#else
+			SDL_Delay(T_FRAME);
+		#endif
 		video.clearScreen(0);
 
-		dst.x = canvasW - 144;
-		dst.y = (canvasH - 110) >> 1;
+		//dst.x = canvasW - 144;
+		//dst.y = (canvasH - 110) >> 1;
 
 		if ((episode < episodes - 1) || (episode < 6)) {
 
-			SDL_BlitSurface(episodeScreens[episode], NULL, canvas, &dst);
+			//SDL_BlitSurface(episodeScreens[episode], NULL, canvas, &dst);
+			blitToCanvas(&episodeScreens[episode],canvasW - 144,(canvasH - 110) >> 1);
 
 		} else if ((episode == 10) && (episodes > 6)) {
 
-			SDL_BlitSurface(episodeScreens[episodes - 1], NULL, canvas, &dst);
-
+			//SDL_BlitSurface(episodeScreens[episodes - 1], NULL, canvas, &dst);
+			blitToCanvas(&episodeScreens[episode-1],canvasW - 144,(canvasH - 110) >> 1);
 		}
 
 		for (count = 0; count < 12; count++) {
@@ -566,7 +589,7 @@ int GameMenu::newGameEpisode (GameModeType mode) {
 			} else if (!exists[count])
 				fontmn2->mapPalette(240, 8, 94, -16);
 
-			fontmn2->showString(options[count], canvasW >> 3,
+			fontmn2->showString(optionsEpisode[count], canvasW >> 3,
 				(canvasH >> 1) + (count << 4) - 92);
 
 			if ((count == episode) || (!exists[count]))
@@ -583,151 +606,21 @@ int GameMenu::newGameEpisode (GameModeType mode) {
 }
 
 
-/**
- * Run the game joining menu.
- *
- * @return Error code
- */
-int GameMenu::joinGame () {
-
-	Game* game;
-	int ret;
-
-	ret = textInput("ip address:", netAddress);
-
-	if (ret < 0) return ret;
-
-	try {
-
-		game = new ClientGame(netAddress);
-
-	} catch (int e) {
-
-		switch (e) {
-
-			case E_N_SOCKET:
-
-				if (message("SOCKET ERROR") == E_QUIT) return E_QUIT;
-
-				break;
-
-			case E_N_ADDRESS:
-
-				if (message("INVALID ADDRESS") == E_QUIT) return E_QUIT;
-
-				break;
-
-			case E_N_CONNECT:
-
-				if (message("COULD NOT CONNECT") == E_QUIT) return E_QUIT;
-
-				break;
-
-			case E_TIMEOUT:
-
-				if (message("OPERATION TIMED OUT") == E_QUIT) return E_QUIT;
-
-				break;
-
-			case E_DATA:
-
-				if (message("INCORRECT DATA\nRECEIVED") == E_QUIT) return E_QUIT;
-
-				break;
-
-			case E_VERSION:
-
-				if (message("WRONG SERVER VERSION") == E_QUIT) return E_QUIT;
-
-				break;
-
-			case E_RETURN:
-			case E_QUIT:
-
-				break;
-
-			default:
-
-				if (message("COULD NOT COMPLETE CONNECTION") == E_QUIT) return E_QUIT;
-
-				break;
-
-		}
-
-		return e;
-
-	}
-
-
-	// Play the level(s)
-
-	ret = game->play();
-
-	delete game;
-
-	if (ret != E_QUIT) playMusic("menusng.psm");
-
-	switch (ret) {
-
-		case E_QUIT:
-
-			return E_QUIT;
-
-		case E_FILE:
-
-			return message("FILE NOT FOUND");
-
-		case E_N_DISCONNECT:
-
-			return message("DISCONNECTED");
-
-	}
-
-	return E_NONE;
-
-}
-
 
 /**
  * Run the new game menu.
  *
  * @return Error code
  */
-int GameMenu::newGame () {
-
-#if (defined USE_SOCKETS) || (defined USE_SDL_NET)
-	const char *newGameOptions[6] = {"new single player game", "new co-op game",
-		"new battle", "new team battle", "new race", "join game"};
-	int ret;
-	int option;
-
-	option = 0;
-
-	while (true) {
-
-		video.setPalette(menuPalette);
-
-		ret = generic(newGameOptions, 6, option);
-
-		if (ret == E_QUIT) return E_QUIT;
-		if (ret < 0) return E_NONE;
-
-		if (option == 5) {
-
-			if (joinGame() == E_QUIT) return E_QUIT;
-
-		} else {
-
-			if (newGameEpisode(GameModeType(option)) == E_QUIT) return E_QUIT;
-
+int GameMenu::newGame() {
+	difficultyScreen.pix=(unsigned char *)objs[difficultyScreenid].ptr;
+	int esc=11;
+	while(esc--){
+		if(episodeScreensid[esc]!=INVALID_OBJ){
+			episodeScreens[esc].pix=(unsigned char *)objs[episodeScreensid[esc]].ptr;
 		}
-
 	}
-
-	return E_NONE;
-#else
 	return newGameEpisode(M_SINGLE);
-#endif
 
 }
 

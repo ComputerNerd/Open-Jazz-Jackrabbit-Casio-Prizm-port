@@ -39,9 +39,11 @@
 #include "level/level.h"
 #include "io/gfx/anim.h"
 #include "OpenJazz.h"
-
+#ifndef CASIO
 #include <SDL/SDL.h>
-
+#endif
+#include "mem.h"
+#include "surface.h"
 
 // Constants
 
@@ -173,12 +175,15 @@ class JJ1LevelPlayer;
 class JJ1Level : public Level {
 
 	private:
-		SDL_Surface*  tileSet; ///< Tile images
-		SDL_Surface*  panel; ///< HUD background image
-		SDL_Surface*  panelAmmo[6]; ///< HUD ammo type images
+		struct miniSurface  tileSet; ///< Tile images
+		objid_t			tileSetramid=INVALID_OBJ;
+		struct miniSurface  panel; ///< HUD background image
+		struct miniSurface  panelAmmo[6]; ///< HUD ammo type images
+		objid_t			panelAmmoramid[6]={INVALID_OBJ,INVALID_OBJ,INVALID_OBJ,INVALID_OBJ,INVALID_OBJ,INVALID_OBJ};
 		JJ1Event*     events; ///< Active events
 		JJ1Bullet*    bullets; ///< Active bullets
-		char*         musicFile; ///< Music file name
+		JJ1Event*     events; ///< JJ1Events
+		//char*         musicFile; ///< Music file name
 		char*         sceneFile; ///< File name of cutscene to play when level has been completed
 		Sprite*       spriteSet; ///< Sprites
 		Anim          animSet[ANIMS]; ///< Animations
@@ -189,7 +194,7 @@ class JJ1Level : public Level {
 		char          mask[240][64]; ///< Tile masks. At most 240 tiles, all with 8 * 8 masks
 		GridElement   grid[LH][LW]; ///< Level grid. All levels are the same size
 		int           soundMap[32]; ///< Maps event sound effect numbers to actual sound effect indices
-		SDL_Color     skyPalette[256]; ///< Full palette for sky background
+		unsigned short	skyPalette[256]; ///< Full palette for sky background
 		bool          sky; ///< Whether or not to use sky background
 		unsigned char skyOrb; ///< The tile to use as the background sun/moon/etc.
 		int           levelNum; ///< Number of current level
@@ -221,9 +226,10 @@ class JJ1Level : public Level {
 		void draw ();
 
 	public:
+		unsigned char * rle_panel=0;
 		JJ1EventPath path[PATHS]; ///< Pre-defined event movement paths
 
-		JJ1Level          (Game* owner, char* fileName, bool checkpoint, bool multi);
+		JJ1Level          (Game* owner, char* fileName, bool checkpoint);
 		virtual ~JJ1Level ();
 
 		bool          checkMaskUp   (fixed x, fixed y);
@@ -246,11 +252,9 @@ class JJ1Level : public Level {
 		void          createBullet  (JJ1LevelPlayer* sourcePlayer, unsigned char gridX, unsigned char gridY, fixed startX, fixed startY, unsigned char bullet, bool facing, unsigned int time);
 		void          setWaterLevel (unsigned char gridY);
 		fixed         getWaterLevel ();
-		void          playSound     (int sound);
+		//void          playSound     (int sound);
 		void          flash         (unsigned char red, unsigned char green, unsigned char blue, int duration);
-		void          receive       (unsigned char* buffer);
 		virtual int   play          ();
-
 };
 
 /// JJ1 level played as a demo

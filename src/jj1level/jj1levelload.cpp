@@ -41,12 +41,20 @@
 #include "io/gfx/font.h"
 #include "io/gfx/sprite.h"
 #include "io/gfx/video.h"
-#include "io/sound.h"
+//#include "io/sound.h"
 #include "loop.h"
 #include "util.h"
-
+#include "MAINCHAR.h"
 #include <string.h>
-
+#ifdef CASIO
+	#include <fxcg/keyboard.h>
+	#include <fxcg/display.h>
+	#include <fxcg/file.h>
+	#include <fxcg/misc.h>
+	#include "platforms/casio.h"
+	#include <alloca.h>
+	#include <stdlib.h>
+#endif
 
 #define SKEY 254 /* Sprite colour key */
 
@@ -59,7 +67,7 @@
 int JJ1Level::loadPanel () {
 
 	File* file;
-	unsigned char* pixels;
+	//unsigned char* pixels;
 	unsigned char* sorted;
 	int type, x, y;
 
@@ -73,39 +81,41 @@ int JJ1Level::loadPanel () {
 		return e;
 
 	}
-
-	pixels = file->loadRLE(46272);
-
+	rle_panel=(unsigned char*)malloc(46272);
+	if(!rle_panel){
+		#ifdef CASIO
+			casioQuitM("rle_panel");
+		#else
+			puts("Malloc rle_panel");
+		#endif
+	}
+	file->loadRLE(46272,rle_panel);
 	delete file;
 
 
 	// Create the panel background
-	panel = createSurface(pixels, SW, 32);
-
+	initMiniSurface(&panel,(unsigned char *)rle_panel,SW,32);
 
 	// De-scramble the panel's ammo graphics
 
-	sorted = new unsigned char[64 * 26];
-
 	for (type = 0; type < 6; type++) {
+		addobj(64*26,&panelAmmoramid[type]);
+		sorted=(unsigned char *)objs[panelAmmoramid[type]].ptr;
 
 		for (y = 0; y < 26; y++) {
 
 			for (x = 0; x < 64; x++)
-				sorted[(y * 64) + x] = pixels[(type * 64 * 32) + (y * 64) + (x >> 2) + ((x & 3) << 4) + (55 * 320)];
+				sorted[(y * 64) + x] = rle_panel[(type * 64 * 32) + (y * 64) + (x >> 2) + ((x & 3) << 4) + (55 * 320)];
 
 		}
 
-		panelAmmo[type] = createSurface(sorted, 64, 26);
+		initMiniSurface(&panelAmmo[type],sorted,64,26);
 
 	}
 
-	delete[] sorted;
 
-	delete[] pixels;
-
+	rle_panel=(unsigned char*)realloc(rle_panel,SW*32);
 	return E_NONE;
-
 }
 
 
@@ -115,16 +125,23 @@ int JJ1Level::loadPanel () {
  * @param file File from which to load the sprite data
  * @param sprite Sprite that will receive the loaded data
  */
-void JJ1Level::loadSprite (File* file, Sprite* sprite) {
+void JJ1Level::loadSprite(File* file, Sprite* sprite) {
 
-	unsigned char* pixels;
+	//unsigned char* pixels;
 	int pos, maskOffset;
 	int width, height;
 
 	// Load dimensions
 	width = file->loadShort() << 2;
 	height = file->loadShort();
-
+	#ifdef CASIO
+		{char sI[16];
+			itoa(width,(unsigned char *)sI);
+			drawStrL(4,sI);
+		}
+	#else
+		printf("Width: %d\n",width);
+	#endif
 	file->seek(2, false);
 
 	maskOffset = file->loadShort();
@@ -132,11 +149,14 @@ void JJ1Level::loadSprite (File* file, Sprite* sprite) {
 	pos = file->loadShort() << 2;
 
 	// Sprites can be either masked or not masked.
+	if(maskOffset)
+		++height;
+	unsigned char * pixels=(unsigned char *)alloca(width*height);
 	if (maskOffset) {
 
 		// Masked
 
-		height++;
+		//height++;
 
 		// Skip to mask
 		file->seek(maskOffset, false);
@@ -145,10 +165,12 @@ void JJ1Level::loadSprite (File* file, Sprite* sprite) {
 		pos += file->tell() + ((width >> 2) * height);
 
 		// Read scrambled, masked pixel data
-		pixels = file->loadPixels(width * height, SKEY);
+		//pixels = file->loadPixels(width * height, SKEY);
+		//unsigned char * pixels=(unsigned char *)alloca(width*height);
+		file->loadPixels(width * height, SKEY,pixels);
 		sprite->setPixels(pixels, width, height, SKEY);
 
-		delete[] pixels;
+		//delete[] pixels;
 
 		file->seek(pos, true);
 
@@ -157,13 +179,31 @@ void JJ1Level::loadSprite (File* file, Sprite* sprite) {
 		// Not masked
 
 		// Read scrambled pixel data
-		pixels = file->loadPixels(width * height);
+		//unsigned char * pixels=(unsigned char *)alloca(width*height);
+		//pixels = file->loadPixels(width * height);
+		file->loadPixels(width * height,pixels);
 		sprite->setPixels(pixels, width, height, SKEY);
 
-		delete[] pixels;
+		//delete[] pixels;
 
 	}
-
+				/*#ifdef CASIO
+				//Draw the sprite on screen to which one is causing issue
+				//start at y=96
+				{
+				unsigned short *o=(unsigned short *)0xA8000000;
+				o+=96*384;
+				unsigned short x,y;
+				for(y=0;y<height;++y){
+					for(x=0;x<width;++x){
+						*o++=video.currentPalette[*pixels++];
+					}
+					o+=384-width;
+				}
+				Bdisp_PutDisp_DD_stripe(96,96+height);
+				//casioDelay(1000);//See which sprite is causing issue
+				}
+			#endif*/
 
 	return;
 
@@ -177,58 +217,42 @@ void JJ1Level::loadSprite (File* file, Sprite* sprite) {
  *
  * @return Error code
  */
-int JJ1Level::loadSprites (char * fileName) {
-
-	File* mainFile = NULL;
-	File* specFile = NULL;
+int JJ1Level::loadSprites (char * fileName){
+	//File* mainFile = NULL;
+	//File* specFile = NULL;
+try{
 	unsigned char* buffer;
 	int count;
 	bool loaded;
-
-
 	// Open fileName
-	try {
-
-		specFile = new File(fileName, false);
-
-	} catch (int e) {
-
-		return e;
-
-	}
-
-
+	File specFile(fileName, false);
+	int specSize=specFile.getSize();
 	// This function loads all the sprites, not just those in fileName
-	try {
-
+	/*try {
 		mainFile = new File(F_MAINCHAR, false);
-
 	} catch (int e) {
-
 		delete specFile;
-
 		return e;
-
-	}
-
-
-	sprites = specFile->loadShort(256);
+	}*/
+	sprites = specFile.loadShort(256);
 
 	// Include space in the sprite set for the blank sprite at the end
 	spriteSet = new Sprite[sprites + 1];
 
 
 	// Read offsets
-	buffer = specFile->loadBlock(sprites * 2);
-
+	{
+	//buffer = specFile.loadBlock(sprites * 2);
+	buffer=(unsigned char *)alloca(sprites*2);
+	specFile.loadBlock(sprites * 2,buffer);
 	for (count = 0; count < sprites; count++)
 		spriteSet[count].setOffset(buffer[count] << 2, buffer[sprites + count]);
-
-	delete[] buffer;
+	}
+	//delete[] buffer;
 
 
 	// Skip to where the sprites start in mainchar.000
-	mainFile->seek(2, true);
+	//mainFile->seek(2, true);
 
 
 	// Loop through all the sprites to be loaded
@@ -236,13 +260,12 @@ int JJ1Level::loadSprites (char * fileName) {
 
 		loaded = false;
 
-		if (mainFile->loadChar() == 0xFF) {
+		/*if (mainFile->loadChar() == 0xFF) {
 
 			// Go to the next sprite/file indicator
 			mainFile->seek(1, false);
 
 		} else {
-
 			// Return to the start of the sprite
 			mainFile->seek(-1, false);
 
@@ -251,21 +274,49 @@ int JJ1Level::loadSprites (char * fileName) {
 
 			loaded = true;
 
+		}*/
+		if(mainchar_spriteTab[count]!=0){
+			loaded=true;
+			initMiniSurface(&spriteSet[count].pixels,(void *)mainchar_spriteTab[count],width_sprites[count],height_sprites[count]);
+			setColKey(&spriteSet[count].pixels,SKEY);
 		}
 
-		if (specFile->loadChar() == 0xFF) {
+		if (specFile.loadChar() == 0xFF) {
 
 			// Go to the next sprite/file indicator
-			specFile->seek(1, false);
+			specFile.seek(1, false);
 
 		} else {
 
 			// Return to the start of the sprite
-			specFile->seek(-1, false);
-
+			specFile.seek(-1, false);
+			#ifdef CASIO
+			{
+				char tMp[8];
+				itoa(count,(unsigned char *)tMp);
+				drawStrL(3,tMp);
+			}
+			#endif
 			// Load the individual sprite data
-			loadSprite(specFile, spriteSet + count);
-
+			loadSprite(&specFile, spriteSet + count);
+			/*#ifdef CASIO
+				//Draw the sprite on screen to which one is causing issue
+				//start at y=96
+				{
+				unsigned char *i=spriteSet[count].pixels.pix;
+				unsigned short *o=(unsigned short *)0xA8000000;
+				o+=(96+spriteSet[count].pixels.h)*384;
+				unsigned short x,y;
+				for(y=0;y<spriteSet[count].pixels.h;++y){
+					for(x=0;x<spriteSet[count].pixels.w;++x){
+						*o++=video.currentPalette[*i++];
+					}
+					o+=384-spriteSet[count].pixels.w;
+				}
+				Bdisp_PutDisp_DD_stripe(96+spriteSet[count].pixels.h,96+(spriteSet[count].pixels.h*2));
+				casioDelay(1000);//See which sprite is causing issue
+				}
+			#endif*/
 			loaded = true;
 
 		}
@@ -277,25 +328,26 @@ int JJ1Level::loadSprites (char * fileName) {
 
 		// Check if the next sprite exists
 		// If not, create blank sprites for the remainder
-		if (specFile->tell() >= specFile->getSize()) {
+		if (specFile.tell() >= specSize) {
 
 			for (count++; count < sprites; count++) {
 
 				spriteSet[count].clearPixels();
 
 			}
-
 		}
-
 	}
-
-	delete mainFile;
-	delete specFile;
-
-
+	//delete mainFile;
+	//delete specFile;
 	// Include a blank sprite at the end
 	spriteSet[sprites].clearPixels();
-
+}catch (int e){
+	#ifdef CASIO
+		casioQuit("Error loading sprites");
+	#else
+		puts("Sprites error");
+	#endif
+}
 	return E_NONE;
 
 }
@@ -308,94 +360,116 @@ int JJ1Level::loadSprites (char * fileName) {
  *
  * @return The number of tiles loaded
  */
-int JJ1Level::loadTiles (char* fileName) {
-
-	File* file;
+/*#ifdef CASIO
+static void drawTileC(unsigned char * i,unsigned short xoff,unsigned short yoff){
+	unsigned short *o=(unsigned short *)0xA8000000;
+	o+=yoff*384;
+	o+=xoff;
+	unsigned short x,y;
+	for(y=0;y<32;++y){
+		for(x=0;x<32;++x){
+			*o++=video.currentPalette[*i++];
+		}
+		o+=384-32;
+	} 
+}
+#endif*/
+int JJ1Level::loadTiles(char* fileName) {
+try{
 	unsigned char* buffer;
 	int rle, pos, index, count, fileSize;
 	int tiles;
-
-
-	try {
-
-		file = new File(fileName, false);
-
-	} catch (int e) {
-
-		return e;
-
-	}
-
+	File file(fileName, false);
 
 	// Load the palette
-	file->loadPalette(palette);
-
+	file.loadPalette(palette);
+	video.setPalette(palette);
 
 	// Load the background palette
-	file->loadPalette(skyPalette);
+	file.loadPalette(skyPalette);
 
 
 	// Skip the second, identical, background palette
-	file->skipRLE();
+	file.skipRLE();
 
 
 	// Load the tile pixel indices
 
 	tiles = 240; // Never more than 240 tiles
-
-	buffer = new unsigned char[tiles << 10];
-
-	file->seek(4, false);
+	addobj(tiles<<10,&tileSetramid);//240kb
+	//buffer = new unsigned char[tiles << 10];
+	buffer=(unsigned char *)objs[tileSetramid].ptr;
+	file.seek(4, false);
 
 	pos = 0;
-	fileSize = file->getSize();
+	fileSize = file.getSize();
 
 	// Read the RLE pixels
 	// file::loadRLE() cannot be used, for reasons that will become clear
-	while ((pos < (tiles << 10)) && (file->tell() < fileSize)) {
-
-		rle = file->loadChar();
+	#ifdef CASIO
+		unsigned short U=0;
+		unsigned int Tl=0;
+	#endif
+	while ((pos < (tiles << 10)) && (file.tell() < fileSize)) {
+		#ifdef CASIO
+			if(U==2048){
+				U=0;
+				{char P[16];
+				itoa(pos,(unsigned char *)P);
+				drawStrL(7,P);}
+			}else
+				++U;
+		#endif
+		rle = file.loadChar();
 
 		if (rle & 128) {
 
-			index = file->loadChar();
+			index = file.loadChar();
 
 			for (count = 0; count < (rle & 127); count++) buffer[pos++] = index;
 
 		} else if (rle) {
-
-			for (count = 0; count < rle; count++)
-				buffer[pos++] = file->loadChar();
-
+			#ifdef CASIO
+				Bfile_ReadFile_OS(file.file,&buffer[pos],rle,-1);
+				pos+=rle;
+			#else
+				for (count = 0; count < rle; count++)
+					buffer[pos++] = file.loadChar();
+			#endif
 		} else { // This happens at the end of each tile
 
 			// 0 pixels means 1 pixel, apparently
-			buffer[pos++] = file->loadChar();
+			buffer[pos++] = file.loadChar();
 
-			file->seek(2, false); /* I assume this is the length of the next
+			file.seek(2, false); /* I assume this is the length of the next
 				tile block */
 
-			if (pos == (60 << 10)) file->seek(2, false);
-			if (pos == (120 << 10)) file->seek(2, false);
-			if (pos == (180 << 10)) file->seek(2, false);
+			if (pos == (60 << 10)) file.seek(2, false);
+			else if (pos == (120 << 10)) file.seek(2, false);
+			else if (pos == (180 << 10)) file.seek(2, false);
 
 		}
 
 	}
-
-	delete file;
+//Draw the tiles so far loaded
+	//delete file;
 
 	// Work out how many tiles were actually loaded
 	// Should be a multiple of 60
 	tiles = pos >> 10;
-
-	tileSet = createSurface(buffer, TTOI(1), TTOI(tiles));
-	SDL_SetColorKey(tileSet, SDL_SRCCOLORKEY, TKEY);
-
-	delete[] buffer;
-
+	//tileSet = createSurface(buffer, TTOI(1), TTOI(tiles));
+	initMiniSurface(&tileSet,buffer, TTOI(1), TTOI(tiles));
+	//SDL_SetColorKey(tileSet, SDL_SRCCOLORKEY, TKEY);
+	setColKey(&tileSet,TKEY);
+	//delete[] buffer;
+	resizeobj(tileSetramid, TTOI(1)*TTOI(tiles));
 	return tiles;
-
+}catch(int e){
+	#ifdef CASIO
+		casioQuit("Error loading tiles");
+	#endif
+	throw e;
+}
 }
 
 
@@ -407,8 +481,19 @@ int JJ1Level::loadTiles (char* fileName) {
  *
  * @return Error code
  */
-int JJ1Level::load (char* fileName, bool checkpoint) {
 
+/**
+ * Load the level.
+ *
+ * @param fileName Name of the file containing the level data
+ * @param checkpoint Whether or not the player(s) will start at a checkpoint
+ *
+ * @return Error code
+ */
+int JJ1Level::load (char* fileName, bool checkpoint) {
+	#ifdef CASIO
+		drawStrL(1,"Loading...");
+	#endif
 	Anim* pAnims[JJ1PANIMS];
 	File* file;
 	unsigned char* buffer;
@@ -420,7 +505,9 @@ int JJ1Level::load (char* fileName, bool checkpoint) {
 
 
 	// Load font
-
+	#ifdef CASIO
+		drawStrL(2,"Fonts");
+	#endif
 	try {
 
 		font = new Font(false);
@@ -433,7 +520,9 @@ int JJ1Level::load (char* fileName, bool checkpoint) {
 
 
 	// Load panel
-
+	#ifdef CASIO
+		drawStrL(2,"Panel");
+	#endif
 	count = loadPanel();
 
 	if (count < 0) {
@@ -443,7 +532,9 @@ int JJ1Level::load (char* fileName, bool checkpoint) {
 		return count;
 
 	}
-
+	#ifdef CASIO
+		drawStrL(2,"Loading Screen");
+	#endif
 
 	// Show loading screen
 
@@ -530,8 +621,6 @@ int JJ1Level::load (char* fileName, bool checkpoint) {
 
 	if (::loop(NORMAL_LOOP) == E_QUIT) return E_QUIT;
 
-
-
 	// Open level file
 
 	try {
@@ -547,9 +636,10 @@ int JJ1Level::load (char* fileName, bool checkpoint) {
 
 	}
 
-
 	// Load the blocks.### extension
-
+	#ifdef CASIO
+		drawStrL(2,"Layout");
+	#endif
 	// Skip past all level data
 	file->seek(39, true);
 	file->skipRLE();
@@ -587,7 +677,9 @@ int JJ1Level::load (char* fileName, bool checkpoint) {
 	else string = createFileName(F_BLOCKS, ext);
 
 	delete[] ext;
-
+	#ifdef CASIO
+		drawStrL(2,"Tiles");
+	#endif
 	tiles = loadTiles(string);
 
 	delete[] string;
@@ -606,14 +698,18 @@ int JJ1Level::load (char* fileName, bool checkpoint) {
 	// Load sprite set from corresponding Sprites.###
 
 	string = createFileName(F_SPRITES, worldNum);
-
+	#ifdef CASIO
+		drawStrL(2,"Sprites");
+	#endif
 	count = loadSprites(string);
 
 	delete[] string;
 
 	if (count < 0) {
 
-		SDL_FreeSurface(tileSet);
+		//SDL_FreeSurface(tileSet);
+		if(tileSetramid!=INVALID_OBJ)
+			freeobj(tileSetramid);
 		delete file;
 		deletePanel();
 		delete font;
@@ -627,13 +723,23 @@ int JJ1Level::load (char* fileName, bool checkpoint) {
 	file->seek(39, true);
 
 	// Load tile and event references
-
-	buffer = file->loadRLE(LW * LH * 2);
+	#ifdef CASIO
+		drawStrL(2,"Layout");
+	#endif
+	buffer=(unsigned char *)malloc(LW * LH * 2);
+	if(!buffer){
+		#ifdef CASIO
+			casioQuitM("grid");
+		#else
+			puts("Malloc error grid");
+		#endif
+	}
+	file->loadRLE(LW * LH * 2,buffer);
 
 	// Create grid from data
-	for (x = 0; x < LW; x++) {
+	for (x = 0; x < LW;++x){
 
-		for (y = 0; y < LH; y++) {
+		for (y = 0; y < LH;++y) {
 
 			grid[y][x].tile = buffer[(y + (x * LH)) << 1];
 			grid[y][x].bg = buffer[((y + (x * LH)) << 1) + 1] >> 7;
@@ -644,31 +750,32 @@ int JJ1Level::load (char* fileName, bool checkpoint) {
 		}
 
 	}
-
-	delete[] buffer;
+	free(buffer);
+	//delete[] buffer;
 
 	// A mysterious block of mystery
 	file->skipRLE();
 
 
 	// Load mask data
-
-	buffer = file->loadRLE(tiles * 8);
-
+	buffer=(unsigned char *)malloc(tiles*8);
+	file->loadRLE(tiles * 8,buffer);
+	if(!buffer){
+		#ifdef CASIO
+			casioQuitM("mask");
+		#else
+			puts("Malloc error mask");
+		#endif
+	}
 	// Unpack bits
 	for (count = 0; count < tiles; count++) {
-
 		for (y = 0; y < 8; y++) {
-
 			for (x = 0; x < 8; x++)
 				mask[count][(y << 3) + x] = (buffer[(count << 3) + y] >> x) & 1;
-
 		}
-
 	}
-
-	delete[] buffer;
-
+	//delete[] buffer;
+	free(buffer);
 	/* Uncomment the code below if you want to see the mask instead of the tile
 	graphics during gameplay */
 
@@ -694,8 +801,8 @@ int JJ1Level::load (char* fileName, bool checkpoint) {
 
 
 	// Load special event path
-
-	buffer = file->loadRLE(PATHS << 9);
+	buffer=(unsigned char *)malloc(PATHS << 9);
+	file->loadRLE(PATHS << 9,buffer);
 
 	for (type = 0; type < PATHS; type++) {
 
@@ -712,13 +819,20 @@ int JJ1Level::load (char* fileName, bool checkpoint) {
 		}
 
 	}
-
-	delete[] buffer;
+	free(buffer);
+	//delete[] buffer;
 
 
 	// Load event set
-
-	buffer = file->loadRLE(EVENTS * ELENGTH);
+	buffer=(unsigned char *)malloc(EVENTS * ELENGTH);
+	if(!buffer){
+		#ifdef CASIO
+			casioQuitM("Event set");
+		#else
+			puts("Malloc error event set");
+		#endif
+	}
+	file->loadRLE(EVENTS * ELENGTH,buffer);
 
 	// Fill event set with data
 	for (count = 0; count < EVENTS; count++) {
@@ -765,24 +879,30 @@ int JJ1Level::load (char* fileName, bool checkpoint) {
 				// Anything else that scores is an item
 				if ((eventSet[type].modifier == 0) && eventSet[type].strength) enemies++;
 				else if (eventSet[type].points) items++;
-
 			}
-
 		}
-
 	}
-
-	delete[] buffer;
-
+	//delete[] buffer;
+	free(buffer);
 
 	// Yet more doubtless essential data
 	file->skipRLE();
 
 
 	// Load animation set
-
-	buffer = file->loadRLE(ANIMS << 6);
-
+	#ifdef CASIO
+		drawStrL(2,"Animations");
+	#endif
+	buffer=(unsigned char *)malloc(ANIMS<<6);
+	if(!buffer){
+		#ifdef CASIO
+			casioQuitM("mask");
+		#else
+			puts("Malloc error mask");
+		#endif
+	}
+	file->loadRLE(ANIMS << 6,buffer);
+	
 	// Create animation set based on that data
 	for (count = 0; count < ANIMS; count++) {
 
@@ -805,9 +925,11 @@ int JJ1Level::load (char* fileName, bool checkpoint) {
 		}
 
 	}
-
-	delete[] buffer;
-
+	//delete[] buffer;
+	free(buffer);
+	#ifdef CASIO
+		drawStrL(2,"Misc");
+	#endif
 
 	// At general data
 
@@ -824,30 +946,11 @@ int JJ1Level::load (char* fileName, bool checkpoint) {
 
 	x = file->tell();
 
-	for (count = 0; count < 32; count++) {
 
-		file->seek(x + (count * 9), true);
-
-		string = file->loadString();
-
-		soundMap[count] = -1;
-
-		// Search for matching sound
-
-		for (y = 0; (y < nSounds) && (soundMap[count] == -1); y++) {
-
-			if (!strcmp(string, sounds[y].name)) soundMap[count] = y;
-
-		}
-
-		delete[] string;
-
-	}
-
-	file->seek(x + 288, true);
+	//file->seek(x + 288, true);
 
 	// Music file
-	musicFile = file->loadString();
+	//musicFile = file->loadString();
 
 	// 26 bytes of undiscovered usefulness, less the music file name
 	file->seek(x + 314, true);
@@ -885,34 +988,25 @@ int JJ1Level::load (char* fileName, bool checkpoint) {
 
 
 	// Load player's animation set references
-
-	buffer = file->loadRLE(JJ1PANIMS * 2);
-	string = new char[MTL_P_ANIMS + JJ1PANIMS];
+	buffer=(unsigned char *)malloc(JJ1PANIMS*2);
+	if(!buffer){
+		#ifdef CASIO
+			casioQuitM("JJ1PANIMS");
+		#else
+			puts("Malloc error JJ1PANIMS");
+		#endif
+	}
+	file->loadRLE(JJ1PANIMS * 2,buffer);
 
 	for (x = 0; x < JJ1PANIMS; x++) {
 
 		playerAnims[x] = buffer[x << 1];
 		pAnims[x] = animSet + playerAnims[x];
-		string[MTL_P_ANIMS + x] = playerAnims[x];
-
 	}
 
-	delete[] buffer;
-
-	if (multiplayer) {
-
-		string[0] = MTL_P_ANIMS + JJ1PANIMS;
-		string[1] = MT_P_ANIMS;
-		string[2] = 0;
-		game->send((unsigned char *)string);
-
-	}
-
-	delete[] string;
-
+	free(buffer);
 
 	createLevelPlayers(LT_JJ1, pAnims, NULL, checkpoint, startX, startY);
-
 
 	// Load miscellaneous animations
 	miscAnims[0] = file->loadChar();
@@ -920,18 +1014,23 @@ int JJ1Level::load (char* fileName, bool checkpoint) {
 	miscAnims[2] = file->loadChar();
 	miscAnims[3] = file->loadChar();
 
-
 	// Load bullet set
-	buffer = file->loadRLE(BULLETS * BLENGTH);
+	buffer=(unsigned char *)malloc(BULLETS * BLENGTH);
+	if(!buffer){
+		#ifdef CASIO
+			casioQuit("Malloc error bullet set");
+		#else
+			puts("Malloc error bullet set");
+		#endif
+	}
+	file->loadRLE(BULLETS * BLENGTH,buffer);
 
 	for (count = 0; count < BULLETS; count++) {
 
 		memcpy(bulletSet[count], buffer + (count * BLENGTH), BLENGTH);
-
 	}
 
-	delete[] buffer;
-
+	free(buffer);
 
 	// Now at "Section 18." More skippability.
 	file->skipRLE();
@@ -1037,20 +1136,18 @@ int JJ1Level::load (char* fileName, bool checkpoint) {
 
 	delete file;
 
-
 	// Set the tick at which the level will end
 	endTime = (5 - game->getDifficulty()) * 2 * 60 * 1000;
 
-
 	events = NULL;
 	bullets = NULL;
-
 	energyBar = 0;
 	ammoType = 0;
 	ammoOffset = -1;
 
+	#ifdef CASIO
+		drawStrL(2,"Done");
+	#endif
 	return E_NONE;
-
 }
-
 

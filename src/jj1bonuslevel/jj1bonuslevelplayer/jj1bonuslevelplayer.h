@@ -31,9 +31,9 @@
 #include "player/player.h"
 
 #include "OpenJazz.h"
-
+#ifndef CASIO
 #include <SDL/SDL.h>
-
+#endif
 
 // Constants
 
@@ -99,9 +99,6 @@ class JJ1BonusLevelPlayer : public LevelPlayer {
 		fixed         getDirection ();
 		int           getGems      ();
 		fixed         getZ         ();
-
-		void          send         (unsigned char* buffer);
-		void          receive      (unsigned char* buffer);
 
 		void          step         (unsigned int ticks, int msps, JJ1BonusLevel* bonus);
 		void          draw         (unsigned int ticks);

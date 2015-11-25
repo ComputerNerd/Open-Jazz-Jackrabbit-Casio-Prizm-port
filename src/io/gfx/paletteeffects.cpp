@@ -29,7 +29,7 @@
 #include "video.h"
 
 #include "jj1level/jj1level.h"
-#include "jj2level/jj2level.h"
+//#include "jj2level/jj2level.h"
 #include "level/levelplayer.h"
 #include "player/player.h"
 
@@ -69,7 +69,7 @@ PaletteEffect::~PaletteEffect () {
  * @param direct Whether or not to apply the effect directly
  * @param mspf Ticks per frame
  */
-void PaletteEffect::apply (SDL_Color* shownPalette, bool direct, int mspf) {
+void PaletteEffect::apply (unsigned short* shownPalette, bool direct, int mspf) {
 
 	// Apply the next palette effect
 	if (next) next->apply(shownPalette, direct, mspf);
@@ -95,7 +95,6 @@ WhiteInPaletteEffect::WhiteInPaletteEffect
 
 }
 
-
 /**
  * Apply the palette effect.
  *
@@ -103,37 +102,22 @@ WhiteInPaletteEffect::WhiteInPaletteEffect
  * @param direct Whether or not to apply the effect directly
  * @param mspf Ticks per frame
  */
-void WhiteInPaletteEffect::apply (SDL_Color* shownPalette, bool direct, int mspf) {
+void WhiteInPaletteEffect::apply (unsigned short* shownPalette, bool direct, int mspf) {
 
 	int count;
 
 	// Apply the next palette effect
 	if (next) next->apply(shownPalette, direct, mspf);
-
-
 	if (whiteness > F1) {
-
-		memset(shownPalette, 255, sizeof(SDL_Color) * 256);
-
-		whiteness -= ITOF(mspf) / duration;
-
-	} else if (whiteness > 0) {
-
-		for (count = 0; count < 256; count++) {
-
-			shownPalette[count].r = 255 -
-				FTOI((255 - shownPalette[count].r) * (F1 - whiteness));
-			shownPalette[count].g = 255 -
-				FTOI((255 - shownPalette[count].g) * (F1 - whiteness));
-			shownPalette[count].b = 255 -
-				FTOI((255 - shownPalette[count].b) * (F1 - whiteness));
-
+		memset(shownPalette, 255, sizeof(unsigned short) * 256);
+	} else if (whiteness > 0){
+		for (count = 0; count < 256; count++){
+			shownPalette[count] = ((31 -FTOI((31 - (shownPalette[count]>>11)) * (F1 - whiteness)))<<11)|
+			((63 -FTOI((63 - ((shownPalette[count]>>5)&63)) * (F1 - whiteness)))<<5)|
+			(31 -FTOI((31 - (shownPalette[count]&31)) * (F1 - whiteness)));
 		}
-
-		whiteness -= ITOF(mspf) / duration;
-
 	}
-
+	whiteness -= ITOF(mspf) / duration;
 	if (direct) video.changePalette(shownPalette, 0, 256);
 
 	return;
@@ -165,7 +149,7 @@ FadeInPaletteEffect::FadeInPaletteEffect
  * @param direct Whether or not to apply the effect directly
  * @param mspf Ticks per frame
  */
-void FadeInPaletteEffect::apply (SDL_Color* shownPalette, bool direct, int mspf) {
+void FadeInPaletteEffect::apply (unsigned short* shownPalette, bool direct, int mspf) {
 
 	int count;
 
@@ -175,29 +159,20 @@ void FadeInPaletteEffect::apply (SDL_Color* shownPalette, bool direct, int mspf)
 
 	if (blackness > F1) {
 
-		memset(shownPalette, 0, sizeof(SDL_Color) * 256);
+		memset(shownPalette, 0, sizeof(unsigned short) * 256);
 
 		blackness -= ITOF(mspf) / duration;
 
 	} else if (blackness > 0) {
 
 		for (count = 0; count < 256; count++) {
-
-			shownPalette[count].r =
-				FTOI(shownPalette[count].r * (F1 - blackness));
-			shownPalette[count].g =
-				FTOI(shownPalette[count].g * (F1 - blackness));
-			shownPalette[count].b =
-				FTOI(shownPalette[count].b * (F1 - blackness));
-
+			shownPalette[count] = ((FTOI((shownPalette[count]>>11) * (F1 - blackness)))<<11)|
+			((FTOI(((shownPalette[count]>>5)&63) * (F1 - blackness)))<<5)|
+			(FTOI((shownPalette[count]&31) * (F1 - blackness)));
 		}
-
 		blackness -= ITOF(mspf) / duration;
-
 	}
-
 	if (direct) video.changePalette(shownPalette, 0, 256);
-
 	return;
 
 }
@@ -227,7 +202,7 @@ WhiteOutPaletteEffect::WhiteOutPaletteEffect
  * @param direct Whether or not to apply the effect directly
  * @param mspf Ticks per frame
  */
-void WhiteOutPaletteEffect::apply (SDL_Color* shownPalette, bool direct, int mspf) {
+void WhiteOutPaletteEffect::apply (unsigned short* shownPalette, bool direct, int mspf) {
 
 	int count;
 
@@ -237,19 +212,14 @@ void WhiteOutPaletteEffect::apply (SDL_Color* shownPalette, bool direct, int msp
 
 	if (whiteness > F1) {
 
-		memset(shownPalette, 255, sizeof(SDL_Color) * 256);
+		memset(shownPalette, 255, sizeof(unsigned short) * 256);
 
 	} else if (whiteness > 0) {
 
-		for (count = 0; count < 256; count++) {
-
-			shownPalette[count].r = 255 -
-				FTOI((255 - shownPalette[count].r) * (F1 - whiteness));
-			shownPalette[count].g = 255 -
-				FTOI((255 - shownPalette[count].g) * (F1 - whiteness));
-			shownPalette[count].b = 255 -
-				FTOI((255 - shownPalette[count].b) * (F1 - whiteness));
-
+		for (count = 0; count < 256; count++){
+			shownPalette[count] = ((31 -FTOI((31 - (shownPalette[count]>>11)) * (F1 - whiteness)))<<11)|
+			((63 -FTOI((63 - ((shownPalette[count]>>5)&63)) * (F1 - whiteness)))<<5)|
+			(31 -FTOI((31 - (shownPalette[count]&31)) * (F1 - whiteness)));
 		}
 
 		whiteness += ITOF(mspf) / duration;
@@ -287,7 +257,7 @@ FadeOutPaletteEffect::FadeOutPaletteEffect
  * @param direct Whether or not to apply the effect directly
  * @param mspf Ticks per frame
  */
-void FadeOutPaletteEffect::apply (SDL_Color* shownPalette, bool direct, int mspf) {
+void FadeOutPaletteEffect::apply (unsigned short* shownPalette, bool direct, int mspf) {
 
 	int count;
 
@@ -296,23 +266,15 @@ void FadeOutPaletteEffect::apply (SDL_Color* shownPalette, bool direct, int mspf
 
 	if (blackness > F1) {
 
-		memset(shownPalette, 0, sizeof(SDL_Color) * 256);
+		memset(shownPalette, 0, sizeof(unsigned short) * 256);
 
 	} else if (blackness > 0) {
-
 		for (count = 0; count < 256; count++) {
-
-			shownPalette[count].r =
-				FTOI(shownPalette[count].r * (F1 - blackness));
-			shownPalette[count].g =
-				FTOI(shownPalette[count].g * (F1 - blackness));
-			shownPalette[count].b =
-				FTOI(shownPalette[count].b * (F1 - blackness));
-
+			shownPalette[count]=((FTOI((shownPalette[count]>>11) * (F1 - blackness))<<11))|
+			((FTOI(((shownPalette[count]>>5)&63) * (F1 - blackness))<<5))|
+			(FTOI((shownPalette[count]&31) * (F1 - blackness)));
 		}
-
 		blackness += ITOF(mspf) / duration;
-
 	} else blackness += ITOF(mspf) / duration;
 
 	if (direct) video.changePalette(shownPalette, 0, 256);
@@ -354,7 +316,7 @@ FlashPaletteEffect::FlashPaletteEffect
  * @param direct Whether or not to apply the effect directly
  * @param mspf Ticks per frame
  */
-void FlashPaletteEffect::apply (SDL_Color* shownPalette, bool direct, int mspf) {
+void FlashPaletteEffect::apply (unsigned short* shownPalette, bool direct, int mspf) {
 
 	int count;
 
@@ -365,12 +327,9 @@ void FlashPaletteEffect::apply (SDL_Color* shownPalette, bool direct, int mspf) 
 
 		for (count = 0; count < 256; count++) {
 
-			shownPalette[count].r = FTOI((shownPalette[count].r * -progress) +
-				(red * (progress + F1)));
-			shownPalette[count].g = FTOI((shownPalette[count].g * -progress) +
-				(green * (progress + F1)));
-			shownPalette[count].b = FTOI((shownPalette[count].b * -progress) +
-				(blue * (progress + F1)));
+			shownPalette[count] = ((FTOI(((shownPalette[count]>>11) * -progress) +(red * (progress + F1))))<<11)|
+			((FTOI((((shownPalette[count]>>5)&63) * -progress) +(green * (progress + F1))))<<5)|
+			(FTOI(((shownPalette[count]&31) * -progress) +(blue * (progress + F1))));
 
 		}
 
@@ -380,12 +339,9 @@ void FlashPaletteEffect::apply (SDL_Color* shownPalette, bool direct, int mspf) 
 
 		for (count = 0; count < 256; count++) {
 
-			shownPalette[count].r = FTOI((shownPalette[count].r * progress) +
-				(red * (F1 - progress)));
-			shownPalette[count].g = FTOI((shownPalette[count].g * progress) +
-				(green * (F1 - progress)));
-			shownPalette[count].b = FTOI((shownPalette[count].b * progress) +
-				(blue * (F1 - progress)));
+			shownPalette[count] = ((FTOI(((shownPalette[count]>>11) * progress) +(red * (F1 - progress))))<<11);
+			((FTOI((((shownPalette[count]>>5)&63) * progress) +(green * (F1 - progress))))<<5)|
+			(FTOI(((shownPalette[count]&31) * progress) +(blue * (F1 - progress))));
 
 		}
 
@@ -429,9 +385,9 @@ RotatePaletteEffect::RotatePaletteEffect
  * @param direct Whether or not to apply the effect directly
  * @param mspf Ticks per frame
  */
-void RotatePaletteEffect::apply (SDL_Color* shownPalette, bool direct, int mspf) {
+void RotatePaletteEffect::apply (unsigned short* shownPalette, bool direct, int mspf) {
 
-	SDL_Color* currentPalette;
+	unsigned short* currentPalette;
 	int count;
 
 	// Apply the next palette effect
@@ -444,7 +400,7 @@ void RotatePaletteEffect::apply (SDL_Color* shownPalette, bool direct, int mspf)
 
 		memcpy(shownPalette + first + count,
 			currentPalette + first +
-			((count + FTOI(position)) % amount), sizeof(SDL_Color));
+			((count + FTOI(position)) % amount), sizeof(unsigned short));
 
 	}
 
@@ -469,7 +425,7 @@ void RotatePaletteEffect::apply (SDL_Color* shownPalette, bool direct, int mspf)
  */
 SkyPaletteEffect::SkyPaletteEffect
 	(unsigned char newFirst, int newAmount, fixed newSpeed,
-		SDL_Color* newSkyPalette, PaletteEffect* nextPE) :
+		unsigned short* newSkyPalette, PaletteEffect* nextPE) :
 	PaletteEffect (nextPE) {
 
 	skyPalette = newSkyPalette;
@@ -489,7 +445,7 @@ SkyPaletteEffect::SkyPaletteEffect
  * @param direct Whether or not to apply the effect directly
  * @param mspf Ticks per frame
  */
-void SkyPaletteEffect::apply (SDL_Color* shownPalette, bool direct, int mspf) {
+void SkyPaletteEffect::apply (unsigned short* shownPalette, bool direct, int mspf) {
 
 	int position, count, y;
 
@@ -519,14 +475,14 @@ void SkyPaletteEffect::apply (SDL_Color* shownPalette, bool direct, int mspf) {
 		if (count > 255 - amount) {
 
 			memcpy(shownPalette + first, skyPalette + count,
-				sizeof(SDL_Color) * (255 - count));
+				sizeof(unsigned short) * (255 - count));
 			memcpy(shownPalette + first + (255 - count), skyPalette,
-				sizeof(SDL_Color) * (count + amount - 255));
+				sizeof(unsigned short) * (count + amount - 255));
 
 		} else {
 
 			memcpy(shownPalette + first, skyPalette + count,
-				sizeof(SDL_Color) * amount);
+				sizeof(unsigned short) * amount);
 
 		}
 
@@ -565,9 +521,9 @@ P2DPaletteEffect::P2DPaletteEffect
  * @param direct Whether or not to apply the effect directly
  * @param mspf Ticks per frame
  */
-void P2DPaletteEffect::apply (SDL_Color* shownPalette, bool direct, int mspf) {
+void P2DPaletteEffect::apply (unsigned short* shownPalette, bool direct, int mspf) {
 
-	SDL_Color* currentPalette;
+	unsigned short* currentPalette;
 	int count, x, y, j;
 
 	// Apply the next palette effect
@@ -584,7 +540,7 @@ void P2DPaletteEffect::apply (SDL_Color* shownPalette, bool direct, int mspf) {
 
 			memcpy(shownPalette + first + (count << 3) + j,
 				currentPalette + first + (((count + y) % 8) << 3) +
-				((j + x) % 8), sizeof(SDL_Color));
+				((j + x) % 8), sizeof(unsigned short));
 
 		}
 
@@ -625,9 +581,9 @@ P1DPaletteEffect::P1DPaletteEffect
  * @param direct Whether or not to apply the effect directly
  * @param mspf Ticks per frame
  */
-void P1DPaletteEffect::apply (SDL_Color* shownPalette, bool direct, int mspf) {
+void P1DPaletteEffect::apply (unsigned short* shownPalette, bool direct, int mspf) {
 
-	SDL_Color* currentPalette;
+	unsigned short* currentPalette;
 	fixed position;
 	int count;
 
@@ -643,7 +599,7 @@ void P1DPaletteEffect::apply (SDL_Color* shownPalette, bool direct, int mspf) {
 		memcpy(shownPalette + first + count,
 			currentPalette + first + ((count +
 				(amount - 1 - (FTOI(MUL(position, speed)) % amount))) % amount),
-			sizeof(SDL_Color));
+			sizeof(unsigned short));
 
 	}
 
@@ -677,9 +633,9 @@ WaterPaletteEffect::WaterPaletteEffect (fixed newDepth, PaletteEffect* nextPE)
  * @param direct Whether or not to apply the effect directly
  * @param mspf Ticks per frame
  */
-void WaterPaletteEffect::apply (SDL_Color* shownPalette, bool direct, int mspf) {
+void WaterPaletteEffect::apply (unsigned short* shownPalette, bool direct, int mspf) {
 
-	SDL_Color* currentPalette;
+	unsigned short* currentPalette;
 	int position, count;
 
 	// Apply the next palette effect
@@ -689,7 +645,7 @@ void WaterPaletteEffect::apply (SDL_Color* shownPalette, bool direct, int mspf) 
 	currentPalette = video.getPalette();
 
 	if (level) position = localPlayer->getLevelPlayer()->getY() - level->getWaterLevel();
-	else if (jj2Level) position = localPlayer->getLevelPlayer()->getY() - jj2Level->getWaterLevel();
+	//else if (jj2Level) position = localPlayer->getLevelPlayer()->getY() - jj2Level->getWaterLevel();
 	else return;
 
 	if (position <= 0) return;
@@ -697,17 +653,12 @@ void WaterPaletteEffect::apply (SDL_Color* shownPalette, bool direct, int mspf) 
 	if (position < depth) {
 
 		for (count = 0; count < 256; count++) {
-
-			shownPalette[count].r = FTOI(currentPalette[count].r *
-				(1023 - DIV(position, depth)));
-			shownPalette[count].g = FTOI(currentPalette[count].g *
-				(1023 - DIV(position, depth)));
-			shownPalette[count].b = FTOI(currentPalette[count].b *
-				(1023 - DIV(position, depth)));
-
+			shownPalette[count] = ((FTOI((currentPalette[count]>>11) *(1023 - DIV(position, depth))))<<11)|
+			((FTOI(((currentPalette[count]>>5)&63) *(1023 - DIV(position, depth)))<<5))|
+			(FTOI((currentPalette[count]&31) *(1023 - DIV(position, depth))));
 		}
 
-	} else memset(shownPalette, 0, sizeof(SDL_Color) * 256);
+	} else memset(shownPalette, 0, sizeof(unsigned short) * 256);
 
 	if (direct) video.changePalette(shownPalette, 0, 256);
 

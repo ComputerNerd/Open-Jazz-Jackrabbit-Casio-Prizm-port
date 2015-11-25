@@ -70,7 +70,7 @@ JJ1BonusLevelPlayer::JJ1BonusLevelPlayer (Player* parent, Anim **newAnims, unsig
 	// Create the player's palette
 
 	for (count = 0; count < 256; count++)
-		palette[count].r = palette[count].g = palette[count].b = count;
+		palette[count]=((count&248)<<8)|((count&252)<<3)|((count&248)>>3);
 
 	/// @todo Custom colours
 
@@ -335,8 +335,6 @@ void JJ1BonusLevelPlayer::step (unsigned int ticks, int msps, JJ1BonusLevel* bon
 	return;
 
 }
-
-
 /**
  * Draw the player.
  *
@@ -354,68 +352,3 @@ void JJ1BonusLevelPlayer::draw (unsigned int ticks) {
 	return;
 
 }
-
-
-/**
- * Fill a buffer with player data.
- *
- * @param buffer The buffer
- */
-void JJ1BonusLevelPlayer::send (unsigned char *buffer) {
-
-	// Copy data to be sent to clients/server
-
-	buffer[9] = birds;
-	buffer[23] = 0;
-	buffer[25] = 0;
-	buffer[26] = 0;
-	buffer[27] = direction >> 2;
-	buffer[29] = 0;
-	buffer[30] = 0;
-	buffer[31] = 0;
-	buffer[32] = 0;
-	buffer[33] = z >> 24;
-	buffer[34] = (z >> 16) & 255;
-	buffer[35] = (z >> 8) & 255;
-	buffer[36] = z & 255;
-	buffer[37] = x >> 24;
-	buffer[38] = (x >> 16) & 255;
-	buffer[39] = (x >> 8) & 255;
-	buffer[40] = x & 255;
-	buffer[41] = y >> 24;
-	buffer[42] = (y >> 16) & 255;
-	buffer[43] = (y >> 8) & 255;
-	buffer[44] = y & 255;
-
-	return;
-
-}
-
-
-/**
- * Adjust player data based on the contents of a given buffer.
- *
- * @param buffer The buffer
- */
-void JJ1BonusLevelPlayer::receive (unsigned char *buffer) {
-
-	// Interpret data received from client/server
-
-	switch (buffer[1]) {
-
-		case MT_P_TEMP:
-
-			birds = buffer[9];
-			direction = buffer[27] << 2;
-			z = (buffer[33] << 24) + (buffer[34] << 16) + (buffer[35] << 8) + buffer[36];
-			x = (buffer[37] << 24) + (buffer[38] << 16) + (buffer[39] << 8) + buffer[40];
-			y = (buffer[41] << 24) + (buffer[42] << 16) + (buffer[43] << 8) + buffer[44];
-
-			break;
-
-	}
-
-	return;
-
-}
-

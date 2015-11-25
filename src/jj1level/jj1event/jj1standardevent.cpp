@@ -39,7 +39,7 @@
 
 #include "io/gfx/sprite.h"
 #include "io/gfx/video.h"
-#include "io/sound.h"
+//#include "io/sound.h"
 #include "util.h"
 
 #include <stdlib.h>
@@ -939,6 +939,7 @@ JJ1Event* JJ1StandardEvent::step (unsigned int ticks) {
 					ticks);
 
 			setAnimType(E_LEFTANIM | (animType & 1));
+
 
 		} else {
 

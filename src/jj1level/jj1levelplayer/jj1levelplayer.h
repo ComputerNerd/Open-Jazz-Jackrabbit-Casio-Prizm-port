@@ -39,9 +39,9 @@
 #include "level/levelplayer.h"
 #include "player/player.h"
 #include "OpenJazz.h"
-
+#ifndef CASIO
 #include <SDL/SDL.h>
-
+#endif
 
 // Constants
 

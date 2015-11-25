@@ -37,11 +37,14 @@
 #include "io/gfx/paletteeffects.h"
 #include "io/gfx/sprite.h"
 #include "io/gfx/video.h"
-#include "io/sound.h"
+//#include "io/sound.h"
 #include "util.h"
 
 #include <string.h>
-
+#ifdef CASIO
+	#include <alloca.h>
+	#include "platforms/casio.h"
+#endif
 
 /**
  * Load sprites.
@@ -61,7 +64,9 @@ int JJ1BonusLevel::loadSprites () {
 		file = new File(F_BONUS, false);
 
 	} catch (int e) {
-
+		#ifdef CASIO
+			casioQuit("Error opening sprites");
+		#endif
 		return e;
 
 	}
@@ -134,7 +139,7 @@ int JJ1BonusLevel::loadSprites () {
 int JJ1BonusLevel::loadTiles (char *fileName) {
 
 	File *file;
-	unsigned char *pixels;
+	//unsigned char *pixels;
 	unsigned char *sorted;
 	int count, x, y;
 
@@ -143,29 +148,36 @@ int JJ1BonusLevel::loadTiles (char *fileName) {
 		file = new File(fileName, false);
 
 	} catch (int e) {
-
+		#ifdef CASIO
+			casioQuit("Error opening tiles");
+		#endif
 		return e;
 
 	}
 
 	// Load background
-	pixels = file->loadRLE(832 * 20);
-	sorted = new unsigned char[512 * 20];
-
+	{
+	unsigned char * pixels = (unsigned char *)alloca(832*20);
+	file->loadRLE(832 * 20,pixels);
+	//sorted = new unsigned char[512 * 20];
+	addobj(512*20,&backgroundid);
+	sorted=(unsigned char *)objs[backgroundid].ptr;
 	for (count = 0; count < 20; count++) memcpy(sorted + (count * 512), pixels + (count * 832), 512);
 
-	background = createSurface(sorted, 512, 20);
-
-	delete[] sorted;
-	delete[] pixels;
-
+	//background = createSurface(sorted, 512, 20);
+	initMiniSurface(&background,sorted,512,20);
+	//delete[] sorted;
+	//delete[] pixels;
+	}
 	// Load palette
 	file->loadPalette(palette);
 
 	// Load tile graphics
-	pixels = file->loadRLE(1024 * 60);
-	tileSet = createSurface(pixels, 32, 32 * 60);
-
+	addobj(1024*60,&tileSetid);
+	unsigned char * pixels=(unsigned char *)objs[tileSetid].ptr;
+	file->loadRLE(1024 * 60,pixels);
+	//tileSet = createSurface(pixels, 32, 32 * 60);
+	initMiniSurface(&tileSet,pixels,32,32*60);
 	// Create mask
 	for (count = 0; count < 60; count++) {
 
@@ -184,7 +196,7 @@ int JJ1BonusLevel::loadTiles (char *fileName) {
 
 	}
 
-	delete[] pixels;
+	//delete[] pixels;
 
 	delete file;
 
@@ -200,21 +212,27 @@ int JJ1BonusLevel::loadTiles (char *fileName) {
  * @param fileName Name of the file containing the level data.
  * @param multi Whether or not the level will be multi-player
  */
-JJ1BonusLevel::JJ1BonusLevel (Game* owner, char * fileName, bool multi) : Level(owner) {
-
+JJ1BonusLevel::JJ1BonusLevel (Game* owner, char * fileName) : Level(owner) {
+	#ifdef CASIO
+		drawStrL(1,"Loading...");
+	#endif
 	Anim* pAnims[BPANIMS];
 	File *file;
 	unsigned char *buffer;
 	char *string, *fileString;
 	int count, x, y;
 
-
+	#ifdef CASIO
+		drawStrL(2,"Fonts");
+	#endif
 	try {
 
 		font = new Font(true);
 
 	} catch (int e) {
-
+		#ifdef CASIO
+		casioQuit("Error loading fonts");
+		#endif
 		throw e;
 
 	}
@@ -226,11 +244,15 @@ JJ1BonusLevel::JJ1BonusLevel (Game* owner, char * fileName, bool multi) : Level(
 	} catch (int e) {
 
 		delete font;
-
+		#ifdef CASIO
+		casioQuit("Error loading File");
+		#endif
 		throw e;
 
 	}
-
+	#ifdef CASIO
+		drawStrL(2,"Sprites");
+	#endif
 	// Load sprites
 	count = loadSprites();
 
@@ -245,7 +267,9 @@ JJ1BonusLevel::JJ1BonusLevel (Game* owner, char * fileName, bool multi) : Level(
 
 
 	// Load tileset
-
+	#ifdef CASIO
+		drawStrL(2,"Tileset");
+	#endif
 	file->seek(90, true);
 	string = file->loadString();
 	fileString = createFileName(string, 0);
@@ -258,14 +282,16 @@ JJ1BonusLevel::JJ1BonusLevel (Game* owner, char * fileName, bool multi) : Level(
 
 	// Load music
 
-	file->seek(121, true);
+	/*file->seek(121, true);
 	fileString = file->loadString();
 	playMusic(fileString);
 	delete[] fileString;
-
+*/
 
 	// Load animations
-
+	#ifdef CASIO
+		drawStrL(2,"Animations");
+	#endif
 	file->seek(134, true);
 	buffer = file->loadBlock(BANIMS << 6);
 
@@ -296,7 +322,9 @@ JJ1BonusLevel::JJ1BonusLevel (Game* owner, char * fileName, bool multi) : Level(
 
 
 	// Load tiles
-
+	#ifdef CASIO
+		drawStrL(2,"Layout");
+	#endif
 	file->seek(2694, true);
 	buffer = file->loadRLE(BLW * BLH);
 
@@ -356,29 +384,21 @@ JJ1BonusLevel::JJ1BonusLevel (Game* owner, char * fileName, bool multi) : Level(
 
 	createLevelPlayers(LT_JJ1BONUS, pAnims, NULL, false, x, y);
 
-
 	delete file;
 
-
 	// Palette animations
-
 	// Spinny whirly thing
 	paletteEffects = new RotatePaletteEffect(112, 16, F32, NULL);
-
 	// Track sides
 	paletteEffects = new RotatePaletteEffect(192, 16, F32, paletteEffects);
-
 	// Bouncy things
 	paletteEffects = new RotatePaletteEffect(240, 16, F32, paletteEffects);
 
-
 	// Adjust panelBigFont to use bonus level palette
 	panelBigFont->mapPalette(0, 32, 15, -16);
-
-
-	multiplayer = multi;
-
-
+#ifdef CASIO
+	drawStrL(2,"Done!");
+#endif
 	return;
 
 }
@@ -391,9 +411,12 @@ JJ1BonusLevel::~JJ1BonusLevel () {
 
 	// Restore panelBigFont palette
 	panelBigFont->restorePalette();
-
-	SDL_FreeSurface(tileSet);
-
+	if(tileSetid!=INVALID_OBJ)
+		freeobj(tileSetid);
+	//SDL_FreeSurface(tileSet);
+	//looks like the developers (not me) forgot to free background image quite the silly mistake to make
+	if(backgroundid!=INVALID_OBJ)
+		freeobj(backgroundid);
 	delete[] spriteSet;
 
 	delete font;
@@ -441,46 +464,6 @@ bool JJ1BonusLevel::checkMask (fixed x, fixed y) {
 
 }
 
-
-/**
- * Interpret data received from client/server
- *
- * @param buffer Received data
- */
-void JJ1BonusLevel::receive (unsigned char* buffer) {
-
-	switch (buffer[1]) {
-
-		case MT_L_PROP:
-
-			if (buffer[2] == 2) {
-
-				if (stage == LS_NORMAL)
-					endTime += buffer[3] * 1000;
-
-			}
-
-			break;
-
-		case MT_L_GRID:
-
-			if (buffer[4] == 0) grid[buffer[3]][buffer[2]].tile = buffer[5];
-			else if (buffer[4] == 2)
-				grid[buffer[3]][buffer[2]].event = buffer[5];
-
-			break;
-
-		case MT_L_STAGE:
-
-			stage = LevelStage(buffer[2]);
-
-			break;
-
-	}
-
-	return;
-
-}
 
 
 /**
@@ -568,12 +551,12 @@ int JJ1BonusLevel::step () {
 /**
  * Draw the level.
  */
-void JJ1BonusLevel::draw () {
+void JJ1BonusLevel::draw() {
 
 	JJ1BonusLevelPlayer *bonusPlayer;
 	unsigned char* row;
 	Sprite* sprite;
-	SDL_Rect dst;
+	//SDL_Rect dst;
 	fixed playerX, playerY, playerSin, playerCos;
 	fixed distance, fwdX, fwdY, nX, sideX, sideY;
 	int levelX, levelY;
@@ -582,12 +565,12 @@ void JJ1BonusLevel::draw () {
 
 	// Draw the background
 
-	for (x = -(direction & 1023); x < canvasW; x += background->w) {
+	for (x = -(direction & 1023); x < canvasW; x += background.w) {
 
-		dst.x = x;
-		dst.y = (canvasH >> 1) - 4;
-		SDL_BlitSurface(background, NULL, canvas, &dst);
-
+		//dst.x = x;
+		//dst.y = (canvasH >> 1) - 4;
+		//SDL_BlitSurface(background, NULL, canvas, &dst);
+		blitToCanvas(&background,x,(canvasH >> 1) - 4);
 	}
 
 	x = 171;
@@ -607,7 +590,6 @@ void JJ1BonusLevel::draw () {
 	playerSin = fSin(direction);
 	playerCos = fCos(direction);
 
-	if (SDL_MUSTLOCK(canvas)) SDL_LockSurface(canvas);
 
 	for (y = 1; y <= (canvasH >> 1) - 15; y++) {
 
@@ -617,7 +599,7 @@ void JJ1BonusLevel::draw () {
 		fwdX = playerX + MUL(distance - F16, playerSin) - (sideX >> 1);
 		fwdY = playerY - MUL(distance - F16, playerCos) - (sideY >> 1);
 
-		row = ((unsigned char *)(canvas->pixels)) + (canvas->pitch * (canvasH - y));
+		row = ((unsigned char *)(canvas.pix)) + (canvasW * (canvasH - y));
 
 		for (x = 0; x < canvasW; x++) {
 
@@ -626,15 +608,12 @@ void JJ1BonusLevel::draw () {
 			levelX = FTOI(fwdX + MUL(nX, sideX));
 			levelY = FTOI(fwdY + MUL(nX, sideY));
 
-			row[x] = ((unsigned char *)(tileSet->pixels))
-				[(grid[ITOT(levelY) & 255][ITOT(levelX) & 255].tile << 10) +
-					((levelY & 31) * tileSet->pitch) + (levelX & 31)];
+			*row++ = tileSet.pix[(grid[ITOT(levelY) & 255][ITOT(levelX) & 255].tile << 10) + ((levelY & 31) * tileSet.w) + (levelX & 31)];
 
 		}
 
 	}
 
-	if (SDL_MUSTLOCK(canvas)) SDL_UnlockSurface(canvas);
 
 
 	// Draw nearby events
@@ -696,27 +675,17 @@ void JJ1BonusLevel::draw () {
 						break;
 
 				}
-
-				if (sprite) {
-
+				if (sprite){
 					nX = DIV(MUL(sX, playerCos) + MUL(sY, playerSin), divisor);
-					dst.x = FTOI(nX * canvasW) + (canvasW >> 1);
-					dst.y = canvasH >> 1;
-					sprite->drawScaled(dst.x, dst.y, DIV(F64 * canvasW / SW, divisor));
-
+					//dst.x = FTOI(nX * canvasW) + (canvasW >> 1);
+					//dst.y = canvasH >> 1;
+					sprite->drawScaled(FTOI(nX * canvasW) + (canvasW >> 1), canvasH >> 1, DIV(F64 * canvasW / SW, divisor));
 				}
-
 			}
-
 		}
-
 	}
-
-
 	// Show the player
 	bonusPlayer->draw(ticks);
-
-
 	// Show gem count
 	font->showString("*", 0, 0);
 	font->showNumber(bonusPlayer->getGems() / 10, 50, 0);
@@ -821,9 +790,5 @@ int JJ1BonusLevel::play () {
 		drawOverlay(0, pmenu, option, 0, 31, 16);
 
 	}
-
 	return E_NONE;
-
 }
-
-

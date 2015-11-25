@@ -41,7 +41,7 @@
 #include "jj1event.h"
 
 #include "io/gfx/video.h"
-#include "io/sound.h"
+//#include "io/sound.h"
 #include "util.h"
 
 
@@ -136,7 +136,7 @@ void JJ1Event::destroy (unsigned int ticks) {
 
 	level->setEventTime(gridX, gridY, ticks);
 
-	level->playSound(set->sound);
+	//level->playSound(set->sound);
 
 	return;
 
@@ -203,6 +203,7 @@ bool JJ1Event::isFrom (unsigned char gX, unsigned char gY) {
 /**
  * Calculate the width and height of the event
  */
+<<<<<<< HEAD
 void JJ1Event::calcDimensions () {
 
 	if (animType == E_NOANIM) {
@@ -211,19 +212,72 @@ void JJ1Event::calcDimensions () {
 		height = F32;
 
 	} else {
+||||||| merged common ancestors
+fixed JJ1Event::getWidth () {
 
+	fixed width;
+
+	if (animType == E_NOANIM) return F32;
+
+	if ((set->anims[animType] & 0x7F) == 0) return 0;
+=======
+void JJ1Event::calcDimensions () {
+>>>>>>> temp
+
+<<<<<<< HEAD
 		width = ITOF(anim->getWidth());
 		height = ITOF(anim->getHeight());
+||||||| merged common ancestors
+	width = ITOF(getAnim()->getWidth());
 
+	// Blank sprites for e.g. invisible springs
+	if ((width == F1) && (getHeight() == F1)) return F32;
+
+	return width;
+
+}
+=======
+	if (animType == E_NOANIM) height = F32;
+	else if ((set->anims[animType] & 0x7F) == 0) height = 0;
+	else height = ITOF(anim->getHeight());
+
+	if (animType == E_NOANIM) width = F32;
+	else if ((set->anims[animType] & 0x7F) == 0) width = 0;
+	else {
+
+		width = ITOF(anim->getWidth());
+>>>>>>> temp
+
+<<<<<<< HEAD
 		// Blank sprites for e.g. invisible springs
 		if ((width == F1) && (height == F1)) {
+||||||| merged common ancestors
+=======
+		// Blank sprites for e.g. invisible springs
+		if ((width == F1) && (height == F1)) width = F32;
+>>>>>>> temp
 
+<<<<<<< HEAD
 			width = F32;
 			height = F32;
 
 		}
 
 	}
+||||||| merged common ancestors
+/**
+ * Get the height of the event
+ *
+ * @return The height of the event
+ */
+fixed JJ1Event::getHeight () {
+
+	if (animType == E_NOANIM) return F32;
+
+	if ((set->anims[animType] & 0x7F) == 0) return 0;
+=======
+	}
+>>>>>>> temp
 
 	return;
 
@@ -242,10 +296,30 @@ void JJ1Event::calcDimensions () {
  */
 bool JJ1Event::overlap (fixed left, fixed top, fixed width, fixed height) {
 
+<<<<<<< HEAD
 	return (drawnX + this->width >= left) &&
 		(drawnX < left + width) &&
 		(drawnY + this->height >= top) &&
 		(drawnY < top + height);
+||||||| merged common ancestors
+	fixed offset = 0;
+	if (getAnim() && noAnimOffset)
+		offset = getAnim()->getOffset();
+
+	return (x + getWidth() >= left) &&
+		(x < left + width) &&
+		(y + offset >= top) &&
+		(y + offset - getHeight() < top + height);
+=======
+	fixed offset = 0;
+
+	if (anim && noAnimOffset) offset = anim->getOffset();
+
+	return (x + this->width >= left) &&
+		(x < left + width) &&
+		(y + offset >= top) &&
+		(y + offset - this->height < top + height);
+>>>>>>> temp
 
 }
 
@@ -255,20 +329,53 @@ bool JJ1Event::overlap (fixed left, fixed top, fixed width, fixed height) {
  *
  * @param type The new animation type
  */
+<<<<<<< HEAD
 void JJ1Event::setAnimType(unsigned char type) {
 
+	if (type == animType) return;
+||||||| merged common ancestors
+Anim* JJ1Event::getAnim () {
+=======
+void JJ1Event::setAnimType(unsigned char type) {
+>>>>>>> temp
+
+<<<<<<< HEAD
+	animType = type;
+
+	if (animType == E_NOANIM) anim = NULL;
+||||||| merged common ancestors
+	if (animType == E_NOANIM) return NULL;
+=======
 	if (type == animType) return;
 
 	animType = type;
 
 	if (animType == E_NOANIM) anim = NULL;
+>>>>>>> temp
 
 	// If there is no shooting animation, use the normal animation instead
+<<<<<<< HEAD
+	else if (((animType & ~1) == E_LSHOOTANIM) && (set->anims[animType] == 0))
+		anim = level->getAnim(set->anims[animType & 1] & 0x7F);
+
+	else anim = level->getAnim(set->anims[animType] & 0x7F);
+||||||| merged common ancestors
+	if (((animType & ~1) == E_LSHOOTANIM) && (set->anims[animType] == 0))
+		return level->getAnim(set->anims[animType & 1] & 0x7F);
+=======
 	else if (((animType & ~1) == E_LSHOOTANIM) && (set->anims[animType] == 0))
 		anim = level->getAnim(set->anims[animType & 1] & 0x7F);
 
 	else anim = level->getAnim(set->anims[animType] & 0x7F);
 
+	calcDimensions();
+
+	return;
+
+}
+>>>>>>> temp
+
+<<<<<<< HEAD
 	calcDimensions();
 
 	return;
@@ -287,6 +394,22 @@ void JJ1Event::setAnimFrame (int frame, bool looping) {
 	calcDimensions();
 
 	return;
+||||||| merged common ancestors
+	return level->getAnim(set->anims[animType] & 0x7F);
+=======
+
+/**
+ * Sets the animation frame and updates the current dimensions
+ */
+void JJ1Event::setAnimFrame (int frame) {
+
+	if (!anim) return;
+
+	anim->setFrame(frame, true);
+	calcDimensions();
+
+	return;
+>>>>>>> temp
 
 }
 
@@ -346,8 +469,16 @@ void JJ1Event::drawEnergy (unsigned int ticks) {
 
 		// Devan head
 
+<<<<<<< HEAD
 		miscAnim = level->getMiscAnim(MA_DEVHEAD);
 		miscAnim->setFrame(0, true);
+||||||| merged common ancestors
+		anim = level->getMiscAnim(1);
+		anim->setFrame(0, true);
+=======
+		miscAnim = level->getMiscAnim(1);
+		miscAnim->setFrame(0, true);
+>>>>>>> temp
 
 		if (ticks < flashTime) miscAnim->flashPalette(0);
 

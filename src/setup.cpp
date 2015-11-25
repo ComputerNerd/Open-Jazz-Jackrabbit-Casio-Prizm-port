@@ -31,7 +31,7 @@
 #include "io/controls.h"
 #include "io/file.h"
 #include "io/gfx/video.h"
-#include "io/sound.h"
+//#include "io/sound.h"
 #include "player/player.h"
 #include "setup.h"
 #include "util.h"

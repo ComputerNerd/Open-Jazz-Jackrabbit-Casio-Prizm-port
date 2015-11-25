@@ -55,8 +55,6 @@ JJ1DemoLevel::JJ1DemoLevel (Game* owner, const char* fileName) : JJ1Level(owner)
 	char* levelFile;
 	int lNum, wNum, diff, ret;
 
-	multiplayer = false;
-
 	try {
 
 		file = new File(fileName, false);

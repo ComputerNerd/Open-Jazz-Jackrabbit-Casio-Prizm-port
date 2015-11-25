@@ -50,11 +50,20 @@
 #include "io/gfx/paletteeffects.h"
 #include "io/gfx/sprite.h"
 #include "io/gfx/video.h"
-#include "io/sound.h"
+//#include "io/sound.h"
 #include "util.h"
+#include "mem.h"
+#include "surface.h"
 
 #include <string.h>
-
+#ifdef CASIO
+	#include <fxcg/keyboard.h>
+	#include <fxcg/display.h>
+	#include "platforms/casio.h"
+	#include <fxcg/heap.h>
+	#define free sys_free
+	#define malloc sys_malloc
+#endif
 
 /**
  * Base constructor for JJ1DemoLevel sub-class.
@@ -78,9 +87,8 @@ JJ1Level::JJ1Level (Game* owner) : Level(owner) {
  * @param checkpoint Whether or not the player(s) will start at a checkpoint
  * @param multi Whether or not the level will be multi-player
  */
-JJ1Level::JJ1Level (Game* owner, char* fileName, bool checkpoint, bool multi) :
+JJ1Level::JJ1Level (Game* owner, char* fileName, bool checkpoint) :
 	Level (owner) {
-
 	int ret;
 
 	// Load level data
@@ -88,8 +96,6 @@ JJ1Level::JJ1Level (Game* owner, char* fileName, bool checkpoint, bool multi) :
 	ret = load(fileName, checkpoint);
 
 	if (ret < 0) throw ret;
-
-	multiplayer = multi;
 
 	return;
 
@@ -101,16 +107,13 @@ JJ1Level::JJ1Level (Game* owner, char* fileName, bool checkpoint, bool multi) :
  */
 void JJ1Level::deletePanel () {
 
-	SDL_FreeSurface(panel);
-	SDL_FreeSurface(panelAmmo[0]);
-	SDL_FreeSurface(panelAmmo[1]);
-	SDL_FreeSurface(panelAmmo[2]);
-	SDL_FreeSurface(panelAmmo[3]);
-	SDL_FreeSurface(panelAmmo[4]);
-	SDL_FreeSurface(panelAmmo[5]);
-
-	return;
-
+	if(rle_panel)
+		free(rle_panel);
+	rle_panel=0;
+	for(unsigned char x=0;x<6;++x){
+		if(panelAmmoramid[x]!=INVALID_OBJ)
+			freeobj(panelAmmoramid[x]);
+	}
 }
 
 
@@ -135,12 +138,13 @@ JJ1Level::~JJ1Level () {
 	}
 
 	delete[] sceneFile;
-	delete[] musicFile;
+	//delete[] musicFile;
 
 	delete[] spriteSet;
 
-	SDL_FreeSurface(tileSet);
-
+	//SDL_FreeSurface(tileSet);
+	if(tileSetramid!=INVALID_OBJ)
+		freeobj(tileSetramid);
 	deletePanel();
 
 	delete font;
@@ -243,26 +247,8 @@ int JJ1Level::getWorld() {
  * @param nextWorld Next level's world number
  */
 void JJ1Level::setNext (int nextLevel, int nextWorld) {
-
-	unsigned char buffer[MTL_L_PROP];
-
 	nextLevelNum = nextLevel;
 	nextWorldNum = nextWorld;
-
-	if (multiplayer) {
-
-		buffer[0] = MTL_L_PROP;
-		buffer[1] = MT_L_PROP;
-		buffer[2] = 0; // set next level
-		buffer[3] = nextLevel;
-		buffer[4] = nextWorld;
-
-		game->send(buffer);
-
-	}
-
-	return;
-
 }
 
 
@@ -274,26 +260,7 @@ void JJ1Level::setNext (int nextLevel, int nextWorld) {
  * @param tile The new tile
  */
 void JJ1Level::setTile (unsigned char gridX, unsigned char gridY, unsigned char tile) {
-
-	unsigned char buffer[MTL_L_GRID];
-
 	grid[gridY][gridX].tile = tile;
-
-	if (multiplayer) {
-
-		buffer[0] = MTL_L_GRID;
-		buffer[1] = MT_L_GRID;
-		buffer[2] = gridX;
-		buffer[3] = gridY;
-		buffer[4] = 0; // tile variable
-		buffer[5] = tile;
-
-		game->send(buffer);
-
-	}
-
-	return;
-
 }
 
 
@@ -366,29 +333,11 @@ unsigned int JJ1Level::getEventTime (unsigned char gridX, unsigned char gridY) {
  */
 void JJ1Level::clearEvent (unsigned char gridX, unsigned char gridY) {
 
-	unsigned char buffer[MTL_L_GRID];
-
 	// Ignore if the event has been un-destroyed
 	if (!grid[gridY][gridX].hits &&
 		eventSet[grid[gridY][gridX].event].strength) return;
 
 	grid[gridY][gridX].event = 0;
-
-	if (multiplayer) {
-
-		buffer[0] = MTL_L_GRID;
-		buffer[1] = MT_L_GRID;
-		buffer[2] = gridX;
-		buffer[3] = gridY;
-		buffer[4] = 2; // event variable
-		buffer[5] = 0;
-
-		game->send(buffer);
-
-	}
-
-	return;
-
 }
 
 
@@ -406,13 +355,9 @@ void JJ1Level::clearEvent (unsigned char gridX, unsigned char gridY) {
 int JJ1Level::hitEvent (unsigned char gridX, unsigned char gridY, int hits, JJ1LevelPlayer* source, unsigned int time) {
 
 	GridElement* ge;
-	unsigned char buffer[MTL_L_GRID];
 	int hitsToKill;
-
 	ge = grid[gridY] + gridX;
-
 	hitsToKill = eventSet[ge->event].strength;
-
 	// If the event cannot be hit, return negative
 	if (!hitsToKill || (ge->hits == 255)) return -1;
 
@@ -438,22 +383,7 @@ int JJ1Level::hitEvent (unsigned char gridX, unsigned char gridY, int hits, JJ1L
 		ge->hits += hits;
 
 	}
-
-	if (multiplayer) {
-
-		buffer[0] = MTL_L_GRID;
-		buffer[1] = MT_L_GRID;
-		buffer[2] = gridX;
-		buffer[3] = gridY;
-		buffer[4] = 3; // hits variable
-		buffer[5] = ge->hits;
-
-		game->send(buffer);
-
-	}
-
 	return hitsToKill - ge->hits;
-
 }
 
 
@@ -540,18 +470,6 @@ void JJ1Level::setWaterLevel (unsigned char gridY) {
 
 	waterLevelTarget = TTOF(gridY) + F2;
 
-	if (multiplayer) {
-
-		buffer[0] = MTL_L_PROP;
-		buffer[1] = MT_L_PROP;
-		buffer[2] = 1; // set water level
-		buffer[3] = gridY;
-		buffer[4] = 0; // Doesn't really matter
-
-		game->send(buffer);
-
-	}
-
 	return;
 
 }
@@ -633,13 +551,13 @@ void JJ1Level::createBullet (JJ1LevelPlayer* sourcePlayer, unsigned char gridX, 
  *
  * @param sound Number of the sound to play
  */
-void JJ1Level::playSound (int sound) {
+/*void JJ1Level::playSound (int sound) {
 
 	if (sound > 0) ::playSound(soundMap[sound - 1]);
 
 	return;
 
-}
+}*/
 
 
 /**
@@ -652,7 +570,7 @@ void JJ1Level::playSound (int sound) {
  */
 void JJ1Level::flash (unsigned char red, unsigned char green, unsigned char blue, int duration) {
 
-	paletteEffects = new FlashPaletteEffect(red, green, blue, duration, paletteEffects);
+	paletteEffects = new FlashPaletteEffect(red>>2, green>>2, blue>>3, duration, paletteEffects);
 
 	return;
 
@@ -685,66 +603,16 @@ int JJ1Level::playBonus () {
 
 }
 
-
-/**
- * Interpret data received from client/server
- *
- * @param buffer Received data
- */
-void JJ1Level::receive (unsigned char* buffer) {
-
-	switch (buffer[1]) {
-
-		case MT_L_PROP:
-
-			if (buffer[2] == 0) {
-
-				nextLevelNum = buffer[3];
-				nextWorldNum = buffer[4];
-
-			} else if (buffer[2] == 1) {
-
-				waterLevelTarget = TTOF(buffer[3]);
-
-			} else if (buffer[2] == 2) {
-
-				if (stage == LS_NORMAL)
-					endTime += buffer[3] * 1000;
-
-			}
-
-			break;
-
-		case MT_L_GRID:
-
-			if (buffer[4] == 0) grid[buffer[3]][buffer[2]].tile = buffer[5];
-			else if (buffer[4] == 2)
-				grid[buffer[3]][buffer[2]].event = buffer[5];
-			else if (buffer[4] == 3)
-				grid[buffer[3]][buffer[2]].hits = buffer[5];
-
-			break;
-
-		case MT_L_STAGE:
-
-			stage = LevelStage(buffer[2]);
-
-			break;
-
-	}
-
-	return;
-
-}
-
-
 /**
  * Play the level.
  *
  * @return Error code
  */
 int JJ1Level::play () {
-
+	unsigned char pa=5;
+	while(pa--){
+		level->panelAmmo[pa].pix=(unsigned char *)objs[panelAmmoramid[pa]].ptr;
+	}
 	JJ1LevelPlayer* levelPlayer;
 	char *string;
 	bool pmessage, pmenu;
@@ -770,7 +638,7 @@ int JJ1Level::play () {
 
 	video.setPalette(palette);
 
-	playMusic(musicFile);
+	//playMusic(musicFile);
 
 	while (true) {
 
@@ -778,18 +646,14 @@ int JJ1Level::play () {
 
 		if (ret < 0) return ret;
 
-
 		// Check if level has been won
 		if (game && returnTime && (ticks > returnTime)) {
 
-			if (!multiplayer) {
+			// If the gem has been collected, play the bonus level
+			ret = playBonus();
 
-				// If the gem has been collected, play the bonus level
-				ret = playBonus();
+			if (ret < 0) return ret;
 
-				if (ret < 0) return ret;
-
-			}
 
 			if (nextLevelNum == 99) {
 
@@ -827,7 +691,7 @@ int JJ1Level::play () {
 
 			if (ret) return ret;
 
-			if (!multiplayer && playerWasAlive && (localPlayer->getJJ1LevelPlayer()->getEnergy() == 0))
+			if (playerWasAlive && (localPlayer->getJJ1LevelPlayer()->getEnergy() == 0))
 				flash(0, 0, 0, T_END << 1);
 
 		}
@@ -878,7 +742,7 @@ int JJ1Level::play () {
 
 					returnTime = ticks + T_END;
 					paletteEffects = new WhiteOutPaletteEffect(T_END, paletteEffects);
-					::playSound(S_UPLOOP);
+					//::playSound(S_UPLOOP);
 
 				}
 
@@ -912,8 +776,6 @@ int JJ1Level::play () {
 			font->showNumber(localPlayer->getScore(), (canvasW >> 1) + 124, (canvasH >> 1) + 40);
 
 		}
-
-
 		// Draw statistics, menu etc.
 		drawOverlay(LEVEL_BLACK, pmenu, option, 15, 47, -16);
 

@@ -34,13 +34,16 @@
 #include "io/gfx/font.h"
 #include "io/gfx/paletteeffects.h"
 #include "io/gfx/video.h"
-#include "io/sound.h"
+//#include "io/sound.h"
 #include "loop.h"
 #include "util.h"
 
 #include <string.h>
-
-
+#ifdef CASIO
+	#include "platforms/casio.h"
+	#include <fxcg/display.h>
+	#include <fxcg/keyboard.h>
+#endif
 /**
  * Create a JJ1 cutscne frame.
  *
@@ -50,7 +53,7 @@
  */
 JJ1SceneFrame::JJ1SceneFrame(int frameType, unsigned char* frameData, int frameSize) {
 
-	soundId = -1;
+	//soundId = -1;
 	this->frameData = frameData;
 	this->frameType = frameType;
 	this->frameSize = frameSize;
@@ -82,19 +85,14 @@ void JJ1SceneAnimation::addFrame(int frameType, unsigned char* frameData, int fr
 	JJ1SceneFrame* frame = new JJ1SceneFrame(frameType, frameData, frameSize);
 
 	if(sceneFrames == NULL) {
-
 		sceneFrames = frame;
-
 	} else {
-
 		frame->prev = lastFrame;
 		lastFrame->next = frame;
 
 	}
-
 	lastFrame = frame;
 	frames++;
-
 }
 
 
@@ -103,15 +101,14 @@ void JJ1SceneAnimation::addFrame(int frameType, unsigned char* frameData, int fr
  *
  * @param newNext The next animation
  */
-JJ1SceneAnimation::JJ1SceneAnimation  (JJ1SceneAnimation* newNext) {
-
+JJ1SceneAnimation::JJ1SceneAnimation  (JJ1SceneAnimation* newNext){
 	next = newNext;
-	background = NULL;
+	//background = NULL;
+	initMiniSurface(&background,0,0,0);
 	lastFrame = NULL;
 	sceneFrames = NULL;
 	frames = 0;
 	reverseAnimation = 0;
-
 }
 
 
@@ -129,13 +126,13 @@ JJ1SceneAnimation::~JJ1SceneAnimation () {
 			{
 			nextFrame = frame->next;
 			delete frame;
-			frame = NULL;
 			frame = nextFrame;
 			}
 		}
 
-	if (background) SDL_FreeSurface(background);
-
+	//if (background) SDL_FreeSurface(background);
+	if(bgidram!=INVALID_OBJ)
+		freeobj(bgidram);
 }
 
 
@@ -147,7 +144,7 @@ JJ1SceneAnimation::~JJ1SceneAnimation () {
 JJ1SceneImage::JJ1SceneImage (JJ1SceneImage *newNext) {
 
 	next = newNext;
-	image = NULL;
+	//image = NULL;
 
 }
 
@@ -159,7 +156,7 @@ JJ1SceneImage::~JJ1SceneImage () {
 
 	if (next) delete next;
 
-	if (image) SDL_FreeSurface(image);
+	if (ramid!=INVALID_OBJ) freeobj(ramid);
 
 }
 
@@ -220,10 +217,10 @@ JJ1ScenePage::JJ1ScenePage() {
 	pageTime = 0;
 	nTexts = 0;
 	backgrounds = 0;
-	musicFile = NULL;
+	//musicFile = NULL;
 	paletteIndex = 0;
 	askForYesNo = 0;
-	stopMusic = 0;
+	//stopMusic = 0;
 	animIndex = -1; // no anim
 
 }
@@ -234,7 +231,7 @@ JJ1ScenePage::JJ1ScenePage() {
  */
 JJ1ScenePage::~JJ1ScenePage() {
 
-	if (musicFile) delete[] musicFile;
+	//if (musicFile) delete[] musicFile;
 
 }
 
@@ -257,7 +254,9 @@ JJ1Scene::JJ1Scene (const char * fileName) {
 		file = new File(fileName, false);
 
 	} catch (int e) {
-
+		#ifdef CASIO
+		casioQuit(fileName);
+		#endif
 		throw e;
 
 	}
@@ -270,7 +269,7 @@ JJ1Scene::JJ1Scene (const char * fileName) {
 	signed long int dataOffset = file->loadInt(); //get offset pointer to first data block
 
 	scriptItems = file->loadShort(); // Get number of script items
-	scriptStarts = new signed long int[scriptItems];
+	scriptStarts = new signed int[scriptItems];
 	pages = new JJ1ScenePage[scriptItems];
 
 	LOG("Scene: Script items", scriptItems);
@@ -281,12 +280,14 @@ JJ1Scene::JJ1Scene (const char * fileName) {
 		LOG("scriptStart", scriptStarts[loop]);
 
 	}
-
+	#ifdef CASIO
+		drawStrL(5,"Start1");
+	#endif
 	// Seek to datastart now
 	file->seek(dataOffset, true); // Seek to data offsets
 	dataItems = file->loadShort() + 1; // Get number of data items
 	LOG("Scene: Data items", dataItems);
-	dataOffsets = new signed long int[dataItems];
+	dataOffsets = new signed int[dataItems];
 
 	for (loop = 0; loop < dataItems; loop++) {
 
@@ -294,16 +295,20 @@ JJ1Scene::JJ1Scene (const char * fileName) {
 		LOG("dataOffsets", dataOffsets[loop]);
 
 	}
-
+	#ifdef CASIO
+	drawStrL(5,"Start2");
+	#endif
 	loadData(file);
+	#ifdef CASIO
+	drawStrL(5,"Data");
+	#endif
 	loadScripts(file);
-
+	#ifdef CASIO
+	drawStrL(5,"Scripts");
+	#endif
 	delete[] scriptStarts;
 	delete[] dataOffsets;
 	delete file;
-
-	return;
-
 }
 
 
@@ -327,7 +332,6 @@ JJ1Scene::~JJ1Scene () {
  * @return Error code
  */
 int JJ1Scene::play () {
-
 	SDL_Rect dst;
 	unsigned int sceneIndex = 0;
 	JJ1SceneImage *image;
@@ -360,25 +364,25 @@ int JJ1Scene::play () {
 
 		}
 
-		controls.getCursor(x, y);
+		//controls.getCursor(x, y);
 
-		x -= (canvasW - SW) >> 1;
-		y -= (canvasH - SH) >> 1;
+		//x -= (canvasW - SW) >> 1;
+		//y -= (canvasH - SH) >> 1;
 
-		downOrRight = controls.wasCursorReleased();
+		//downOrRight = controls.wasCursorReleased();
 
-		if (controls.release(C_ESCAPE) ||
-			(controls.release(C_NO) && pages[sceneIndex].askForYesNo) ||
-			(downOrRight && (x >= 0) && (x < 100) && (y >= SH - 12) && (y < SH))) {
+		if (controls.release(C_ESCAPE)||(controls.release(C_NO) && pages[sceneIndex].askForYesNo)) {
 
 			if (paletteEffect) delete paletteEffect;
 
 			return E_NONE;
 
 		}
-
-		SDL_Delay(T_FRAME);
-
+		#ifdef CASIO
+			casioDelay(T_FRAME);
+		#else
+			SDL_Delay(T_FRAME);
+		#endif
 
 		if(pages[sceneIndex].askForYesNo) {
 			downOrRight |= controls.release(C_ENTER) || controls.release(C_YES);
@@ -391,9 +395,9 @@ int JJ1Scene::play () {
 			 downOrRight || continueToNextPage ||
 			((globalTicks-lastTicks) >= pageTime * 1000 && pageTime != 256 && pageTime != 0)) {
 
-			if(pages[sceneIndex].stopMusic) {
+			/*if(pages[sceneIndex].stopMusic) {
 				stopMusic();
-			}
+			}*/
 
 			if (upOrLeft) sceneIndex--;
 			else sceneIndex++;
@@ -437,9 +441,9 @@ int JJ1Scene::play () {
 
 			}
 
-			if(pages[sceneIndex].musicFile) {
+			/*if(pages[sceneIndex].musicFile) {
 				playMusic(pages[sceneIndex].musicFile);
-			}
+			}*/
 
 			newpage = 0;
 
@@ -457,10 +461,10 @@ int JJ1Scene::play () {
 
 				if (image) {
 
-					dst.x = pages[sceneIndex].bgX[bg] + ((canvasW - SW) >> 1);
-					dst.y = pages[sceneIndex].bgY[bg] + ((canvasH - SH) >> 1);
-					SDL_BlitSurface(image->image, NULL, canvas, &dst);
-
+					dst.x = pages[sceneIndex].bgX[bg] + ((canvasW - SW)/2);
+					dst.y = pages[sceneIndex].bgY[bg] + ((canvasH - SH)/2);
+					//SDL_BlitSurface(image->image, NULL, canvas, &dst);
+					blitToCanvas(&image->image,dst.x,dst.y);
 				}
 
 			}
@@ -474,33 +478,37 @@ int JJ1Scene::play () {
 				while (animation && (animation->id != pages[sceneIndex].animIndex))
 					animation = animation->next;
 
-				if (animation && animation->background) {
+				if (animation && animation->background.pix) {
 
-					dst.x = (canvasW - SW) >> 1;
-					dst.y = (canvasH - SH) >> 1;
-					frameDelay = 1000 / (pages[sceneIndex].animSpeed >> 8);
-					SDL_BlitSurface(animation->background, NULL, canvas, &dst);
+					dst.x = (canvasW - SW)/2;
+					dst.y = (canvasH - SH)/2;
+					frameDelay = 1000 / (pages[sceneIndex].animSpeed/256);
+					//SDL_BlitSurface(animation->background, NULL, canvas, &dst);
+					blitToCanvas(&animation->background,dst.x,dst.y);
 					currentFrame = animation->sceneFrames;
-					SDL_Delay(frameDelay);
-
+					#ifdef CASIO
+						casioDelay(frameDelay);
+					#else
+						SDL_Delay(frameDelay);
+					#endif
 				}
 
 			} else {
 
 				// Upload pixel data to the surface
-				if (SDL_MUSTLOCK(animation->background)) SDL_LockSurface(animation->background);
+				//if (SDL_MUSTLOCK(animation->background)) SDL_LockSurface(animation->background);
 
 				switch (currentFrame->frameType) {
 
 					case ESquareAniHeader:
 
-						loadCompactedMem(currentFrame->frameSize, currentFrame->frameData, (unsigned char*)animation->background->pixels);
+						loadCompactedMem(currentFrame->frameSize, currentFrame->frameData, (unsigned char*)animation->background.pix);
 
 						break;
 
 					case EFFAniHeader:
 
-						loadFFMem(currentFrame->frameSize, currentFrame->frameData, (unsigned char*)animation->background->pixels);
+						loadFFMem(currentFrame->frameSize, currentFrame->frameData, (unsigned char*)animation->background.pix);
 
 						break;
 
@@ -512,13 +520,13 @@ int JJ1Scene::play () {
 
 				}
 
-				if (SDL_MUSTLOCK(animation->background)) SDL_UnlockSurface(animation->background);
+				//if (SDL_MUSTLOCK(animation->background)) SDL_UnlockSurface(animation->background);
 
 				dst.x = (canvasW - SW) >> 1;
 				dst.y = (canvasH - SH) >> 1;
-				SDL_BlitSurface(animation->background, NULL, canvas, &dst);
-
-				if (currentFrame->soundId != -1 && animation->noSounds > 0) {
+				//SDL_BlitSurface(animation->background, NULL, canvas, &dst);
+				blitToCanvas(&animation->background,dst.x,dst.y);
+				/*if (currentFrame->soundId != -1 && animation->noSounds > 0) {
 
 					LOG("PLAY SOUND NAME",animation->soundNames[currentFrame->soundId-1]);
 
@@ -527,7 +535,7 @@ int JJ1Scene::play () {
 
 						if (!strcmp(animation->soundNames[currentFrame->soundId-1], sounds[y].name)) {
 
-							playSound(y);
+							//playSound(y);
 
 							break;
 
@@ -535,14 +543,16 @@ int JJ1Scene::play () {
 
 					}
 
-				}
+				}*/
 
 				lastFrame = currentFrame;
 				if (prevFrame) currentFrame = currentFrame->prev;
 				else currentFrame = currentFrame->next;
-
-				SDL_Delay(frameDelay);
-
+				#ifdef CASIO
+					casioDelay(frameDelay);
+				#else
+					SDL_Delay(frameDelay);
+				#endif
 				if (currentFrame == NULL && animation->reverseAnimation) {
 
 					//prevFrame = 1 - prevFrame;

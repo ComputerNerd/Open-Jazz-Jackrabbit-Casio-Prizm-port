@@ -42,10 +42,10 @@
 #define B_YSPEED       8
 #define B_GRAVITY     12
 #define B_FINISHANIM  16
-#define B_FINISHSOUND 17
+//#define B_FINISHSOUND 17
 #define B_BEHAVIOUR   18
 #define B_BEHAVIOR    18
-#define B_STARTSOUND  19
+//#define B_STARTSOUND  19
 
 // Survival time
 #define T_BULLET 1000

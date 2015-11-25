@@ -37,18 +37,22 @@
 #include "io/gfx/font.h"
 #include "io/gfx/sprite.h"
 #include "io/gfx/video.h"
-#include "io/sound.h"
+//#include "io/sound.h"
 #include "player/player.h"
 #include "jj1scene/jj1scene.h"
 #include "loop.h"
 #include "setup.h"
-
+#ifdef CASIO
+	#include <fxcg/keyboard.h>
+	#include <fxcg/display.h>
+	#include "platforms/casio.h"
+#endif
 
 /**
  * Create a new base level
  */
 Level::Level (Game* owner) {
-
+	//This is called by JJ1Level
 	game = owner;
 
 	menuOptions[0] = "continue game";
@@ -56,9 +60,9 @@ Level::Level (Game* owner) {
 	menuOptions[3] = "load game";
 	menuOptions[4] = "setup options";
 	menuOptions[5] = "quit game";
-
 	// Arbitrary initial value
-	smoothfps = 50.0f;
+	smoothfps = 60;
+	elapsed=0;
 
 	paletteEffects = NULL;
 
@@ -68,7 +72,6 @@ Level::Level (Game* owner) {
 	stage = LS_NORMAL;
 
 	stats = 0;
-
 	return;
 
 }
@@ -79,7 +82,7 @@ Level::Level (Game* owner) {
  */
 Level::~Level () {
 
-	stopMusic();
+	//stopMusic();
 
 	if (paletteEffects) delete paletteEffects;
 
@@ -100,18 +103,27 @@ Level::~Level () {
  */
 void Level::createLevelPlayers (LevelType levelType, Anim** anims,
 	Anim** flippedAnims, bool checkpoint, unsigned char x, unsigned char y) {
-
+	#ifdef CASIO
+		drawStrL(2,"L1");
+	#endif
 	int count;
 
-	if (!checkpoint) game->setCheckpoint(x, y);
-
+	if (!checkpoint) game->setCheckpoint(x, y);//Crashes somewhere here on casio
+	#ifdef CASIO
+		drawStrL(2,"L2");
+	#endif
 	for (count = 0; count < nPlayers; count++) {
 
 		players[count].createLevelPlayer(levelType, anims, flippedAnims, x, y);
+		#ifdef CASIO
+			drawStrL(2,"L3");
+		#endif
 		game->resetPlayer(players + count);
 
 	}
-
+	#ifdef CASIO
+		drawStrL(2,"L4");
+	#endif
 	return;
 
 }
@@ -154,11 +166,15 @@ int Level::playScene (char* file) {
 /**
  * Perform timing calculations.
  */
-void Level::timeCalcs () {
-
+void Level::timeCalcs(){
 	// Calculate smoothed fps
-	smoothfps = smoothfps + 1.0f -
-		(smoothfps * ((float)(ticks - prevTicks)) / 1000.0f);
+	elapsed+=(ticks - prevTicks);
+	++elapsedcnt;
+	if(elapsed>=1000){
+		smoothfps=elapsedcnt;
+		elapsed-=1000;
+		elapsedcnt=0;
+	}
 	/* This equation is a simplified version of
 	(fps * c) + (smoothfps * (1 - c))
 	where c = (1 / fps)
@@ -168,11 +184,6 @@ void Level::timeCalcs () {
 	The following version is for c = (1 / smoothfps)
 	*/
 	// smoothfps = (fps / smoothfps) + smoothfps - 1;
-
-	// Ignore outlandish values
-	if (smoothfps > 9999.0f) smoothfps = 9999.0f;
-	if (smoothfps < 1.0f) smoothfps = 1.0f;
-
 
 	// Track number of ticks of gameplay since the level started
 
@@ -239,11 +250,11 @@ void Level::drawOverlay (unsigned char bg, bool menu, int option,
 #endif
 			drawRect(canvasW - 84, 11, 80, 25, bg);
 
-		panelBigFont->showNumber(video.getWidth(), canvasW - 52, 14);
+		panelBigFont->showNumber(384, canvasW - 52, 14);
 		panelBigFont->showString("x", canvasW - 48, 14);
-		panelBigFont->showNumber(video.getHeight(), canvasW - 12, 14);
+		panelBigFont->showNumber(216, canvasW - 12, 14);
 		panelBigFont->showString("fps", canvasW - 76, 26);
-		panelBigFont->showNumber((int)smoothfps, canvasW - 12, 26);
+		panelBigFont->showNumber(smoothfps, canvasW - 12, 26);
 
 #ifdef SCALE
 		if (video.getScaleFactor() > 1) {
@@ -329,7 +340,7 @@ int Level::select (bool& menu, int option) {
 
 		case 1: // Change difficulty
 
-			if (!multiplayer) game->setDifficulty((game->getDifficulty() + 1) & 3);
+			game->setDifficulty((game->getDifficulty() + 1) & 3);
 
 			break;
 
@@ -342,9 +353,6 @@ int Level::select (bool& menu, int option) {
 			break;
 
 		case 4: // Setup
-
-			if (!multiplayer) {
-
 				wasSlow = setup.slowMotion;
 
 				if (setupMenu.setupMain() == E_QUIT) return E_QUIT;
@@ -354,9 +362,6 @@ int Level::select (bool& menu, int option) {
 
 				// Restore level palette
 				video.setPalette(palette);
-
-			}
-
 			break;
 
 		case 5: // Quit game
@@ -382,15 +387,6 @@ int Level::loop (bool& menu, int& option, bool& message) {
 
 	int ret, x, y;
 
-	// Networking
-	if (multiplayer) {
-
-		ret = game->step(ticks);
-
-		if (ret < 0) return ret;
-
-	}
-
 
 	// Main loop
 	if (::loop(NORMAL_LOOP, paletteEffects) == E_QUIT) return E_QUIT;
@@ -407,8 +403,7 @@ int Level::loop (bool& menu, int& option, bool& message) {
 
 	if (controls.release(C_STATS)) {
 
-		if (!multiplayer) stats ^= S_SCREEN;
-		else stats = (stats + 1) & 3;
+		stats ^= S_SCREEN;
 
 	}
 
@@ -428,7 +423,7 @@ int Level::loop (bool& menu, int& option, bool& message) {
 
 		}
 
-		if (controls.getCursor(x, y)) {
+		/*if (controls.getCursor(x, y)) {
 
 			x -= canvasW >> 2;
 			y -= (canvasH >> 1) - 46;
@@ -447,24 +442,25 @@ int Level::loop (bool& menu, int& option, bool& message) {
 
 			} else if (controls.wasCursorReleased()) menu = false;
 
-		}
+		}*/
 
 	}
 #if !(ANDROID)
 	else {
 
-		if (controls.wasCursorReleased()) menu = true;
+		//if (controls.wasCursorReleased()) menu = true;
 
 	}
 #endif
 
-	if (!multiplayer) paused = message || menu;
+	paused = message || menu;
 
 	timeCalcs();
 
 	return E_NONE;
 
 }
+
 
 
 /**
@@ -474,8 +470,6 @@ int Level::loop (bool& menu, int& option, bool& message) {
  */
 void Level::addTimer (int seconds) {
 
-	unsigned char buffer[MTL_L_PROP];
-
 	if (stage != LS_NORMAL) return;
 
 	endTime += seconds * 1000;
@@ -483,19 +477,6 @@ void Level::addTimer (int seconds) {
 	if (endTime >= ticks + (10 * 60 * 1000))
 		endTime = ticks + (10 * 60 * 1000) - 1;
 
-	if (multiplayer) {
-
-		buffer[0] = MTL_L_PROP;
-		buffer[1] = MT_L_PROP;
-		buffer[2] = 2; // add timer
-		buffer[3] = seconds;
-		buffer[4] = 0; // not used
-
-		game->send(buffer);
-
-	}
-
-	return;
 
 }
 
@@ -507,22 +488,9 @@ void Level::addTimer (int seconds) {
  */
 void Level::setStage (LevelStage newStage) {
 
-	unsigned char buffer[MTL_L_STAGE];
-
 	if (stage == newStage) return;
 
 	stage = newStage;
-
-	if (multiplayer) {
-
-		buffer[0] = MTL_L_STAGE;
-		buffer[1] = MT_L_STAGE;
-		buffer[2] = stage;
-		game->send(buffer);
-
-	}
-
-	return;
 
 }
 
@@ -537,4 +505,3 @@ LevelStage Level::getStage () {
 	return stage;
 
 }
-

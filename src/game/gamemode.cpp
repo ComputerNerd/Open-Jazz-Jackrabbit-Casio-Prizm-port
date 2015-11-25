@@ -30,7 +30,9 @@
 
 #include "io/gfx/font.h"
 #include "player/player.h"
-
+#ifdef CASIO
+	#include "platforms/casio.h"
+#endif
 
 /**
  * Outcome of player being hit
@@ -82,6 +84,9 @@ bool GameMode::endOfLevel (Game* game, Player *player, int gridX, int gridY) {
 
 	(void)player;
 
+	#ifdef CASIO
+		drawStrL(1,"2");
+	#endif
 	game->setCheckpoint(gridX, gridY);
 
 	return true;

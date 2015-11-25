@@ -30,7 +30,6 @@
 
 #include "gamemode.h"
 
-#include "io/network.h"
 #include "level/level.h"
 
 
@@ -123,10 +122,9 @@ class Game {
 		virtual int  setLevel      (char *fileName) = 0;
 		int          play          ();
 		void         view          (int change);
-		virtual void send          (unsigned char *buffer) = 0;
 		virtual int  step          (unsigned int ticks) = 0;
 		virtual void score         (unsigned char team) = 0;
-		virtual void setCheckpoint (int gridX, int gridY) = 0;
+		virtual void setCheckpoint (int gridX, int gridY)=0;
 		void         resetPlayer   (Player *player);
 
 };
@@ -140,65 +138,10 @@ class LocalGame : public Game {
 		~LocalGame ();
 
 		int  setLevel      (char *fileName);
-		void send          (unsigned char *buffer);
 		int  step          (unsigned int ticks);
 		void score         (unsigned char team);
 		void setCheckpoint (int gridX, int gridY);
 
 };
-
-
-/// Game handling for multiplayer servers
-class ServerGame : public Game {
-
-	private:
-		int            clientStatus[MAX_CLIENTS]; /**< Array of client statuses
- 			-2: Connected and operational
- 			-1: Not connected
-			>=0: Number of bytes of the level that have been sent */
-		int            clientPlayer[MAX_CLIENTS]; ///< Array of client player indexes
-		int            clientSock[MAX_CLIENTS]; ///< Array of client sockets
-		unsigned char  recvBuffers[MAX_CLIENTS][BUFFER_LENGTH]; ///< Array of buffers containing data received from clients
-		int            received[MAX_CLIENTS]; ///< Array containing the amount of data received from each client
-		unsigned char *levelData; ///< Contents of the current level file
-		int            levelSize; ///< Size of the current level file
-		int            sock; ///< Server socket
-
-	public:
-		ServerGame         (GameModeType mode, char *firstLevel, int gameDifficulty);
-		~ServerGame        ();
-
-		int  setLevel      (char *fileName);
-		void send          (unsigned char *buffer);
-		int  step          (unsigned int ticks);
-		void score         (unsigned char team);
-		void setCheckpoint (int gridX, int gridY);
-
-};
-
-
-/// Game handling for multiplayer clients
-class ClientGame : public Game {
-
-	private:
-		File          *file; ///< File to which the incoming level will be written
-		unsigned char  recvBuffer[BUFFER_LENGTH]; ///< Buffer containing data received from server
-		int            received; ///< Amount of data received from server
-		int            clientID; ///< Client's index on the server
-		int            maxPlayers; ///< The maximum number of players in the game
-		int            sock; ///< Client socket
-
-	public:
-		ClientGame         (char *address);
-		~ClientGame        ();
-
-		int  setLevel      (char *fileName);
-		void send          (unsigned char *buffer);
-		int  step          (unsigned int ticks);
-		void score         (unsigned char team);
-		void setCheckpoint (int gridX, int gridY);
-
-};
-
 #endif
 

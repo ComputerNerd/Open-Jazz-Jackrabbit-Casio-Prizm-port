@@ -29,9 +29,9 @@
 
 
 #include "OpenJazz.h"
-
+#ifndef CASIO
 #include <SDL/SDL.h>
-
+#endif
 
 // Classes
 
@@ -73,7 +73,7 @@ class Anim {
 		fixed getYOffset            ();
 		void  draw                  (fixed x, fixed y, int accessories = 7);
 		void  drawScaled            (fixed x, fixed y, fixed scale);
-		void  setPalette            (SDL_Color *palette, int start, int amount);
+		void  setPalette            (unsigned short *palette, int start, int amount);
 		void  flashPalette          (int index);
 		void  restorePalette        ();
 

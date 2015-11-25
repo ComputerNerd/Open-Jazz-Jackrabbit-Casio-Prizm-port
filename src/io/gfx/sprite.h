@@ -29,34 +29,38 @@
 
 
 #include "OpenJazz.h"
-
+#ifndef CASIO
 #include <SDL/SDL.h>
-
+#endif
+#include "mem.h"
+#include "surface.h"
 
 // Class
 
 /// Sprite
-class Sprite {
-
-	private:
-		SDL_Surface* pixels; ///< Sprite image
-		short int    xOffset; ///< Horizontal offset
-		short int    yOffset; ///< Vertical offset
-
+class Sprite{
 	public:
+		struct miniSurface	pixels; ///< Sprite image
+		int			xOffset; ///< Horizontal offset
+		int			yOffset; ///< Vertical offset
+		objid_t				pixelsid;
 		Sprite              ();
 		~Sprite             ();
-
 		void clearPixels    ();
 		void setOffset      (short int x, short int y);
 		void setPixels      (unsigned char* data, int width, int height, unsigned char key);
-		int  getWidth       ();
-		int  getHeight      ();
 		int  getXOffset     ();
 		int  getYOffset     ();
+		int getWidth()const{
+			return pixels.w;
+		}
+
+		int getHeight()const{
+			return pixels.h;
+		}
 		void draw           (int x, int y, bool includeOffsets = true);
 		void drawScaled     (int x, int y, fixed scale);
-		void setPalette     (SDL_Color* palette, int start, int amount);
+		void setPalette     (unsigned short* palette, int start, int amount);
 		void flashPalette   (int index);
 		void restorePalette ();
 

@@ -27,9 +27,11 @@
 
 
 #include "OpenJazz.h"
-
+#ifndef CASIO
 #include <SDL/SDL.h>
-
+#endif
+#include "mem.h"
+#include "surface.h"
 
 // Classes
 
@@ -39,16 +41,17 @@ class File;
 class Font {
 
 	private:
-		SDL_Surface   *characters[128]; ///< Symbol images
-		int            nCharacters; ///< Number of symbols
-		unsigned char  lineHeight; ///< Vertical spacing of displayed characters
-		char           map[128]; ///< Maps ASCII values to symbol indices
-
+		struct miniSurface	characters[128];
+		int					nCharacters; ///< Number of symbols
+		unsigned 			lineHeight; ///< Vertical spacing of displayed characters
+		char				map[128]; ///< Maps ASCII values to symbol indices
 	public:
-		Font                     (const char *fileName);
-		Font                     (unsigned char *pixels, bool big);
-		Font                     (bool bonus);
-		~Font                    ();
+		unsigned char		paletteF[256];
+		objid_t 			ramid=INVALID_OBJ;
+		Font				(const char *fileName);
+		Font				(unsigned char *pixels, bool big);
+		Font				(bool bonus);
+		~Font				();
 
 		int  showString          (const char *s, int x, int y);
 		int  showSceneString     (const unsigned char *s, int x, int y);
@@ -71,6 +74,5 @@ EXTERN Font *fontmn1;        /** Taken from .0FN file name */
 EXTERN Font *fontmn2;        /** Taken from .0FN file name */
 EXTERN Font *panelBigFont;   /** Found in PANEL.000 */
 EXTERN Font *panelSmallFont; /** Found in PANEL.000 */
-
 #endif
 

@@ -28,8 +28,9 @@
 #include "loop.h"
 #include "OpenJazz.h"
 
+#ifndef CASIO
 #include <SDL/SDL.h>
-
+#endif
 
 // Constants
 
@@ -62,61 +63,26 @@ class Controls {
 
 	private:
 		struct {
-
 			int  key; ///< Keyboard key
-			bool pressed; ///< Whether or not the key is pressed
+			bool state; ///< Whether or not the key is pressed
 
 		} keys[CONTROLS];
-
-		struct {
-
-			int  button; ///< Joystick button
-			bool pressed; ///< Whether or not the button is pressed
-
-		} buttons[CONTROLS];
-
-		struct {
-
-			int  axis; ///< Joystick axis
-			bool direction; ///< Axis direction
-			bool pressed; ///< Whether or not the axis is pressed in the given direction
-
-		} axes[CONTROLS];
-
-		struct {
-
-			unsigned int time; ///< The time from which the control will respond to being pressed
-			bool         state; ///< Whether or not the control is being used
-
-		} controls[CONTROLS];
-
-		int          cursorX; ///< X-coordinate of the cursor
-		int          cursorY; ///< Y-coordinate of the cursor
-		bool         cursorPressed; ///< Whether or not the cursor is being pressed
-		bool         cursorReleased; ///< Whether or not the cursor has been released
-		int          wheelUp; ///< How many times the wheel has been scrolled upwards
-		int          wheelDown; ///< How many times the wheel has been scrolled downwards
-
-		void setCursor (int x, int y, bool pressed);
-
 	public:
 		Controls ();
-
+		void SetKeys();
 		void setKey           (int control, int key);
-		void setButton        (int control, int button);
-		void setAxis          (int control, int axis, bool direction);
 		int  getKey           (int control);
-		int  getButton        (int control);
-		int  getAxis          (int control);
-		int  getAxisDirection (int control);
-
-		int  update           (SDL_Event *event, LoopType type);
+		#ifdef CASIO
+			int  update           (LoopType type);
+		#else
+			int  update           (SDL_Event *event, LoopType type);
+		#endif
 		void loop             ();
 
 		bool getState          (int control);
 		bool release           (int control);
-		bool getCursor         (int& x, int& y);
-		bool wasCursorReleased ();
+		//bool getCursor         (int& x, int& y);
+		//bool wasCursorReleased ();
 
 };
 
