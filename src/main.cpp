@@ -458,7 +458,6 @@ static unsigned HackRET(unsigned char*x){
  */
 int main(void){
 	//Main* mainObj;
-	// Initialize SDL
 	#ifdef CASIO
 		Bdisp_EnableColor(1);
 		unsigned short *VRAM=(unsigned short *)0xA8000000;
@@ -469,6 +468,7 @@ int main(void){
 		if(HackRET(SaveVramAddr)&3)
 			SaveVramAddr+=4-(HackRET(SaveVramAddr)&3);//Align address
 	#else
+		// Initialize SDL
 		if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_TIMER) < 0) {
 			logError("Could not start SDL", SDL_GetError());
 			return -1;
