@@ -91,10 +91,12 @@ Main::Main (void){
 	//unsigned char* pixels = NULL;
 	int count;
 	int scaleFactor = 1;
-#ifdef FULLSCREEN_ONLY
-	bool fullscreen = true;
-#else
-	bool fullscreen = false;
+#ifndef CASIO
+	#ifdef FULLSCREEN_ONLY
+		bool fullscreen = true;
+	#else
+		bool fullscreen = false;
+	#endif
 #endif
 
 	// Use the current working directory
@@ -115,7 +117,12 @@ Main::Main (void){
 	// Create the game's window
 
 
+
+#ifdef CASIO
+	if (!video.init()) {
+#else
 	if (!video.init(fullscreen)) {
+#endif
 
 		delete firstPath;
 

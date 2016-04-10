@@ -76,7 +76,9 @@ class Video {
 #ifdef SCALE
 		int          scaleFactor; ///< Scaling factor
 #endif
+#ifndef CASIO
 		bool         fullscreen; ///< Full-screen mode
+#endif
 
 		void expose            ();
 
@@ -84,7 +86,11 @@ class Video {
 		unsigned short	currentPalette[256];
 		Video ();
 		~Video();
+#ifdef CASIO
+		bool       init                  (void);
+#else
 		bool       init                  (bool startFullscreen);
+#endif
 
 		bool       resize                (void);
 

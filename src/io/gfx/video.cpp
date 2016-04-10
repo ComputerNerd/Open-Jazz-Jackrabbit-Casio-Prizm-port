@@ -73,12 +73,16 @@ Video::~Video(){
  *
  * @return Success
  */
+#ifdef CASIO
+bool Video::init(void) {
+#else
 bool Video::init (bool startFullscreen) {
+#endif
 	int count;
 	for (count = 0; count < 256;++count)
 		currentPalette[count]=((count&248)<<8)|((count&252)<<3)|((count&248)>>3);
-	fullscreen = startFullscreen;
 	#ifndef CASIO
+		fullscreen = startFullscreen;
 		if (fullscreen) SDL_ShowCursor(SDL_DISABLE);
 	#endif
 	if (!resize()) {
@@ -115,7 +119,7 @@ bool Video::resize (void) {
 #if defined(CAANOO) || defined(WIZ) || defined(GP2X) || defined(DINGOO)
 	screen = SDL_SetVideoMode(320, 240, 8, FULLSCREEN_FLAGS);
 #elif defined(CASIO)
-//Do nothing
+	//Do nothing
 #else
 	screen = SDL_SetVideoMode(384, 216, 16, fullscreen? FULLSCREEN_FLAGS: WINDOWED_FLAGS);
 #endif
@@ -309,12 +313,7 @@ void Video::flip (int mspf, PaletteEffect* paletteEffects) {
 		If the palette is being used directly, apply all palette effects
 		directly. */
 		memcpy(shownPalette, currentPalette, sizeof(unsigned short) * 256);
-		if (fakePalette) {
-			paletteEffects->apply(shownPalette, false, mspf);
-			//SDL_SetPalette(screen, SDL_PHYSPAL, shownPalette, 0, 256);
-		} else {
-			paletteEffects->apply(shownPalette, true, mspf);
-		}
+		paletteEffects->apply(shownPalette, !fakePalette, mspf);
 		while(y--){
 			x=canvasW;
 			while(x--)
