@@ -66,7 +66,12 @@ JJ1DemoLevel::JJ1DemoLevel (Game* owner, const char* fileName) : JJ1Level(owner)
 	}
 
 	// Check this is a normal level
-	if (file->loadShort() == 0) throw E_DEMOTYPE;
+	if (file->loadShort() == 0) {
+
+		delete file;
+		throw E_DEMOTYPE;
+
+	}
 
 	// Level file to load
 	lNum = file->loadShort(9);
@@ -77,6 +82,8 @@ JJ1DemoLevel::JJ1DemoLevel (Game* owner, const char* fileName) : JJ1Level(owner)
 	diff = file->loadShort();
 
 	macro = file->loadBlock(1024);
+
+	delete file;
 
 	// Load level data
 
