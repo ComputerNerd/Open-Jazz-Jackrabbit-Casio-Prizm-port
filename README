@@ -14,8 +14,8 @@ I have ported Open Jazz jackrabbit to the Casio Prizm. Here are the controls
 	keys[C_YES].key		= KEY_PRGM_F3;
 	keys[C_NO].key		= KEY_PRGM_F4;
 Here is the source code https://github.com/ComputerNerd/Open-Jazz-Jackrabbit-Casio-Prizm-port
-To use the program place openjazz.g3a in the root directory then create a folder called jazz place openjazz.000 in that folder.
-Then download one of the many versions of jazz jackrabbit and place the resource files in that folder.
+To use the program place openjazz.g3a in the root directory of your calculator's file system.
+Then download one of the many versions of Jazz Jackrabbit and place the resource files in that folder.
 You do not need the sound files and you do not need some "extra" files.
 For example the cd version includes a demo of another game you don't need that.
 Also you don't need the *.exe file.

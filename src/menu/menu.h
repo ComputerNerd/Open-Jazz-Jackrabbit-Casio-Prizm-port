@@ -109,9 +109,6 @@ class MainMenu : public Menu {
 		struct miniSurface	background; ///< Menu image
 		struct miniSurface	highlight; ///< Menu image with highlighted text
 		struct miniSurface	logo; ///< OJ logo image
-		#ifndef CASIO
-		unsigned char		logo_pixels[64*40];
-		#endif
 		//unsigned char		background_pixels[SW*SH];//SW and SH are constants they are SW=320 SH=200 62.5KB each
 		//unsigned char		highlight_pixels[SW*SH];
 		objid_t				background_id;

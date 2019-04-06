@@ -534,7 +534,6 @@ char * File::loadString () {
 
 
 void File::skipString () {
-	char *string;
 	unsigned char length;
 	int count;
 	#ifdef CASIO
@@ -547,7 +546,7 @@ void File::skipString () {
 		seek(length,false);
 	}else {
 		// If the length is not given, assume it is an 8.3 file name
-		string = (char *)alloca(14);
+		char string[14];
 		for (count = 0; count < 9; count++) {
 			#ifdef CASIO
 				Bfile_ReadFile_OS(file,&string[count],1,-1);

@@ -44,6 +44,7 @@
 	#include <fxcg/keyboard.h>
 	#include <fxcg/display.h>
 #endif
+#include "menu/OpenJazzLogo.h"
 
 /**
  * Create the main menu.
@@ -82,28 +83,7 @@ File * MainMenu::loadLogos(){
 	#endif
 
 	// Load the OpenJazz logo
-
-	try {
-
-		file = new File(LOGO_FILE, false);
-
-	} catch (int e) {
-		#ifdef CASIO
-		int keyW;
-		GetKey(&keyW);
-		#endif
-		throw e;
-	}
-	#ifdef CASIO
-		drawStrL(2,"Logo");
-	#endif
-	//logo = file->loadSurface(64, 40);
-	#ifdef CASIO
-	file->loadMiniSurface(64,40,SaveVramAddr+sizeof(JJ1Level),&logo);
-	#else
-	file->loadMiniSurface(64,40,logo_pixels,&logo);
-	#endif
-	delete file;
+	initMiniSurface(&logo, (void*)OpenJazzLogoPixels, 64, 40);
 
 	// Load the menu graphics
 
