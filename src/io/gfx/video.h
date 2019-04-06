@@ -131,5 +131,3 @@ EXTERN Video video; ///< Video output
 EXTERN void           drawRect       (int x, int y, int width, int height, int index);
 
 #endif
-
-

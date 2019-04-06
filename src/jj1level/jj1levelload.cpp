@@ -189,23 +189,6 @@ void JJ1Level::loadSprite(File* file, Sprite* sprite) {
 		//delete[] pixels;
 
 	}
-				/*#ifdef CASIO
-				//Draw the sprite on screen to which one is causing issue
-				//start at y=96
-				{
-				unsigned short *o=(unsigned short *)0xA8000000;
-				o+=96*384;
-				unsigned short x,y;
-				for(y=0;y<height;++y){
-					for(x=0;x<width;++x){
-						*o++=video.currentPalette[*pixels++];
-					}
-					o+=384-width;
-				}
-				Bdisp_PutDisp_DD_stripe(96,96+height);
-				//casioDelay(1000);//See which sprite is causing issue
-				}
-			#endif*/
 
 	return;
 
@@ -301,24 +284,6 @@ try{
 			#endif
 			// Load the individual sprite data
 			loadSprite(&specFile, spriteSet + count);
-			/*#ifdef CASIO
-				//Draw the sprite on screen to which one is causing issue
-				//start at y=96
-				{
-				unsigned char *i=spriteSet[count].pixels.pix;
-				unsigned short *o=(unsigned short *)0xA8000000;
-				o+=(96+spriteSet[count].pixels.h)*384;
-				unsigned short x,y;
-				for(y=0;y<spriteSet[count].pixels.h;++y){
-					for(x=0;x<spriteSet[count].pixels.w;++x){
-						*o++=video.currentPalette[*i++];
-					}
-					o+=384-spriteSet[count].pixels.w;
-				}
-				Bdisp_PutDisp_DD_stripe(96+spriteSet[count].pixels.h,96+(spriteSet[count].pixels.h*2));
-				casioDelay(1000);//See which sprite is causing issue
-				}
-			#endif*/
 			loaded = true;
 
 		}
@@ -362,20 +327,6 @@ try{
  *
  * @return The number of tiles loaded
  */
-/*#ifdef CASIO
-static void drawTileC(unsigned char * i,unsigned short xoff,unsigned short yoff){
-	unsigned short *o=(unsigned short *)0xA8000000;
-	o+=yoff*384;
-	o+=xoff;
-	unsigned short x,y;
-	for(y=0;y<32;++y){
-		for(x=0;x<32;++x){
-			*o++=video.currentPalette[*i++];
-		}
-		o+=384-32;
-	} 
-}
-#endif*/
 int JJ1Level::loadTiles(char* fileName) {
 try{
 	unsigned char* buffer;

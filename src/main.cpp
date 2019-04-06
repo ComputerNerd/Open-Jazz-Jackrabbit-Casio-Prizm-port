@@ -30,6 +30,7 @@
 
 #define EXTERN
 #include <string.h>
+#include <stdint.h>
 
 #include "game/game.h"
 #include "io/controls.h"
@@ -337,7 +338,7 @@ int Main::play() {
 
 	}
 	#ifdef CASIO
-	__builtin_memset((unsigned short *)0xA8000000,0,384*216*2);
+	__builtin_memset(vramAddress,0,384*216*2);
 	PrintXY(1,1,"Playing!"-2,0x20,TEXT_COLOR_WHITE);
 	Bdisp_PutDisp_DD();
 	{int key;
@@ -463,12 +464,13 @@ static unsigned HackRET(unsigned char*x){
  *
  * Initializes SDL and launches game.
  */
+uint16_t* vramAddress;
 int main(void){
 	//Main* mainObj;
 	#ifdef CASIO
 		Bdisp_EnableColor(1);
-		unsigned short *VRAM=(unsigned short *)0xA8000000;
-		memset(VRAM,0,384*216*2);
+		vramAddress=(uint16_t *)GetVRAMAddress();
+		memset(vramAddress,0,384*216*2);
 		PrintXY(1,1,"Loading..."-2,0x20,TEXT_COLOR_WHITE);
 		Bdisp_PutDisp_DD();
 		SaveVramAddr=(unsigned char*)getSecondaryVramAddress();

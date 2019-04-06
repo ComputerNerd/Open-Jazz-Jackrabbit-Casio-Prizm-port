@@ -34,6 +34,7 @@
 
 #include "util.h"
 
+#include <stdint.h>
 #include <string.h>
 #ifdef CASIO
 	#include <fxcg/display.h>
@@ -259,8 +260,8 @@ void Video::update (SDL_Event *event) {
 #ifdef CASIO
 #define LCD_GRAM 0x202
 #define LCD_BASE	0xB4000000
-#define VRAM_ADDR 0xA8000000
 // Module Stop Register 0
+extern uint16_t* vramAddress;
 #define MSTPCR0	(volatile unsigned *)0xA4150030
 // DMA0 operation register
 #define DMA0_DMAOR	(volatile unsigned short*)0xFE008060
@@ -277,8 +278,8 @@ static void DoDMAlcdNonblock(void){
 	*MSTPCR0&=~(1<<21);//Clear bit 21
 	*DMA0_CHCR_0&=~1;//Disable DMA on channel 0
 	*DMA0_DMAOR=0;//Disable all DMA
-	*DMA0_SAR_0=VRAM_ADDR&0x1FFFFFFF;//Source address is VRAM
-	*DMA0_DAR_0=LCD_BASE&0x1FFFFFFF;//Desination is LCD
+	*DMA0_SAR_0=((unsigned)vramAddress)&0x1FFFFFFF;//Source address is VRAM
+	*DMA0_DAR_0=LCD_BASE&0x1FFFFFFF;//Destination is LCD
 	*DMA0_TCR_0=(216*384)/16;//Transfer count bytes/32
 	*DMA0_CHCR_0=0x00101400;
 	*DMA0_DMAOR|=1;//Enable DMA on all channels
@@ -298,7 +299,7 @@ void Video::flip (int mspf, PaletteEffect* paletteEffects) {
 	#endif
 	unsigned int x,y;
 	#ifdef CASIO
-		unsigned short *o=(unsigned short *)0xA8000000;
+		unsigned short *o=(unsigned short *)vramAddress;
 		DmaWaitNext();
 	#else
 		unsigned short * o=(unsigned short *)screen->pixels;
