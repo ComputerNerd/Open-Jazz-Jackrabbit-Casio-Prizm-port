@@ -44,24 +44,19 @@ static inline unsigned int sq(unsigned int x){
 	return x*x;
 }
 
-unsigned char nearestIndex(unsigned char r,unsigned char g,unsigned char b,unsigned short * pal,unsigned short amt){
-	//Takes 24bit color and returns the closest color in palette
+unsigned char nearestIndex(unsigned char ri,unsigned char gi,unsigned char bi,unsigned char * pal,unsigned short amt){
 	unsigned short c;
-	unsigned char ri,gi,bi;
-	unsigned char ro,go,bo;
 	unsigned char bestindex=0;
-	unsigned int min=(31*31) +(63*63) +(31*31) +1;
-	ri=r>>3;
-	gi=g>>2;
-	bi=b>>2;
-	for(c=0;c<amt;++c){
-		ro=pal[c]>>11;
-		go=(pal[c]>>6)&63;
-		bo=pal[c]&31;
+	unsigned int min=(63*63) * 3 + 1;
+	amt *= 3;
+	for(c=0;c<amt;c += 3){
+		unsigned char ro = pal[c];
+		unsigned char go = pal[c + 1];
+		unsigned char bo = pal[c + 2];
 		unsigned int dist=sq(ro-ri)+sq(go-gi)+sq(bo-bi);
 		if(dist<=min){
 			min=dist;
-			bestindex=c;
+			bestindex=c / 3;
 		}
 	}
 	return bestindex;

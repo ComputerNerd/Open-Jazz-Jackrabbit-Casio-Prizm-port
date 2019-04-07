@@ -70,20 +70,22 @@ void GameMenu::loadEpisodes(File *file){
 	#ifdef CASIO
 		drawStrL(1,"Loading thumbnails");
 	#endif
-	file->loadPalette(palette);
-	// Generate a greyscale mapping
-	count=256;
-	while(count--){
+	{
+		unsigned char palette6[768];
+		file->loadPalette6(palette6);
+		file->convertPalette(palette, palette6);
+		// Generate a greyscale mapping
+		count=768;
+		while(count -= 3){
 
-		col = ((((palette[count]>>11)<<3) >> 1) + ((((palette[count]>>6)&63)<<2) << 1) + (((palette[count]&31)<<3) >> 1)) >> 3;
+			col = (palette6[count] + palette6[count + 1] + palette6[count + 2]) / 3;
 
-		if (col > 79) col = 79;
+			greyPalette[count / 3]=nearestIndex(col,col,col, palette6, 256);
 
-		greyPalette[count]=nearestIndex(col,col,col,video.currentPalette,256);
-
+		}
 	}
 	episodes = 11;
-	
+
 	for (count = 0; count < 11; count++){
 		//episodeScreens[count] = file->loadSurface(134, 110);
 		#ifdef CASIO
@@ -141,7 +143,7 @@ GameMenu::~GameMenu () {
  * @return Error code
  */
 int GameMenu::playNewGame (GameModeType mode, char* firstLevel) {
-	
+
 	Game* game;
 	int ret;
 
@@ -204,7 +206,7 @@ int GameMenu::newGameDifficulty (GameModeType mode, char* firstLevel) {
 	//SDL_Rect src, dst;
 	short src[4]; //x y w h
 	int x, y, count;
-	
+
 	if(difficultyScreenid==INVALID_OBJ){
 		File * file=skipLogos();
 		loadDifficulty(file);
@@ -567,16 +569,18 @@ int GameMenu::newGameEpisode (GameModeType mode) {
 		//dst.x = canvasW - 144;
 		//dst.y = (canvasH - 110) >> 1;
 
+		int episodeIdx;
+
 		if ((episode < episodes - 1) || (episode < 6)) {
-
-			//SDL_BlitSurface(episodeScreens[episode], NULL, canvas, &dst);
-			blitToCanvas(&episodeScreens[episode],canvasW - 144,(canvasH - 110) >> 1);
-
+			episodeIdx = episode;
 		} else if ((episode == 10) && (episodes > 6)) {
-
-			//SDL_BlitSurface(episodeScreens[episodes - 1], NULL, canvas, &dst);
-			blitToCanvas(&episodeScreens[episode-1],canvasW - 144,(canvasH - 110) >> 1);
+			episodeIdx = episode - 1;
 		}
+
+		if (exists[episodeIdx])
+			blitToCanvas(&episodeScreens[episodeIdx],canvasW - 144,(canvasH - 110) >> 1);
+		else
+			blitToCanvasRemap(&episodeScreens[episodeIdx],canvasW - 144,(canvasH - 110) >> 1, greyPalette);
 
 		for (count = 0; count < 12; count++) {
 

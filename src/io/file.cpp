@@ -458,11 +458,6 @@ void File::loadRLE (int length,unsigned char* buffer) {
 		fseek(file, next, SEEK_SET);
 	#endif
 }
-unsigned char* File::loadRLE (int length) {
-	unsigned char * buffer = new unsigned char[length];
-	loadRLE(length,buffer);
-	return buffer;
-}
 
 /**
  * Skip past a block of RLE compressed data in the file.
@@ -673,21 +668,20 @@ unsigned char* File::loadPixels (int length, int key){
  */
 void File::loadPalette (unsigned short* palette, bool rle) {
 
-	unsigned char* buffer=(unsigned char *)alloca(768);
-	int count;
-	if (rle) loadRLE(768,buffer);
-	else loadBlock(768,buffer);
-	for (count = 0; count < 256; count++) {
-		// Palette entries are 6-bit
-		// Shift them upwards to 8-bit, and fill in the lower 2 bits
+	unsigned char buffer[768];
+	loadPalette6(buffer, rle);
+	convertPalette(palette, buffer);
+}
+
+void File::convertPalette(unsigned short* palette, unsigned char* buffer) {
+	for (int count = 0; count < 256; count++) {
 		palette[count] = ((buffer[count * 3]&62)<<10)|(buffer[(count * 3) + 1] << 5)|(buffer[(count * 3) + 2]>>1);
-
 	}
+}
 
-	//delete[] buffer;
-
-	return;
-
+void File::loadPalette6(unsigned char* palette, bool rle) {
+	if (rle) loadRLE(768, palette);
+	else loadBlock(768, palette);
 }
 
 

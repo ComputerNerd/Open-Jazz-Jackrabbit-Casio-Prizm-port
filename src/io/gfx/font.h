@@ -45,7 +45,9 @@ class Font {
 		int					nCharacters; ///< Number of symbols
 		unsigned 			lineHeight; ///< Vertical spacing of displayed characters
 		char				map[128]; ///< Maps ASCII values to symbol indices
+		void blitFont(miniSurface*surface, int xo, int yo);
 	public:
+		bool remaped;
 		unsigned char		paletteF[256];
 		objid_t 			ramid=INVALID_OBJ;
 		Font				(const char *fileName);

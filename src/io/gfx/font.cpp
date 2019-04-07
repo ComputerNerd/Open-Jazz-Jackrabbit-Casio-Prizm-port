@@ -46,7 +46,6 @@
 const unsigned char blankFont[4] __attribute__((aligned(4))) ={0,0,0,0};
 
 Font::Font (const char* fileName){
-
 	File* file;
 	//unsigned char* blank;
 	int fileSize;
@@ -396,6 +395,12 @@ Font::~Font () {
  *
  * @return The x-coordinate of the end of the string
  */
+void Font::blitFont(miniSurface* surface, int xo, int yo) {
+	if (remaped)
+		blitToCanvasRemap(surface, xo, yo, paletteF);
+	else
+		blitToCanvas(surface, xo, yo);
+}
 int Font::showString (const char* string, int x, int y) {
 
 	struct miniSurface* surface;
@@ -424,7 +429,7 @@ int Font::showString (const char* string, int x, int y) {
 
 			// Draw the character to the screen
 			//SDL_BlitSurface(surface, NULL, canvas, &dst);
-			blitToCanvas(surface,xOffset,yOffset);
+			blitFont(surface, xOffset, yOffset);
 			xOffset += surface->w + 2;
 
 		}
@@ -465,7 +470,7 @@ int Font::showSceneString (const unsigned char* string, int x, int y) {
 
 		// Draw the character to the screen
 		//SDL_BlitSurface(surface, NULL, canvas, &dst);
-		blitToCanvas(surface,offset,y);
+		blitFont(surface,offset,y);
 		offset += surface->w + 1;
 
 	}
@@ -502,7 +507,7 @@ void Font::showNumber (int n, int x, int y) {
 
 		// Draw 0 to the screen
 		//SDL_BlitSurface(surface, NULL, canvas, &dst);
-		blitToCanvas(surface,x-(surface->w),y);
+		blitFont(surface,x-(surface->w),y);
 		return;
 
 	}
@@ -527,7 +532,7 @@ void Font::showNumber (int n, int x, int y) {
 
 		// Draw the digit to the screen
 		//SDL_BlitSurface(surface, NULL, canvas, &dst);
-		blitToCanvas(surface,offset,y);
+		blitFont(surface,offset,y);
 		count /= 10;
 
 	}
@@ -544,7 +549,7 @@ void Font::showNumber (int n, int x, int y) {
 
 		// Draw the negative sign to the screen
 		//SDL_BlitSurface(surface, NULL, canvas, &dst);
-		blitToCanvas(surface,offset-surface->w,y);
+		blitFont(surface,offset-surface->w,y);
 
 	}
 	return;
@@ -560,22 +565,13 @@ void Font::showNumber (int n, int x, int y) {
  * @param newLength Span of new range
  */
 void Font::mapPalette (int start, int length, int newStart, int newLength) {
-	//SDL_Color palette[256];
-	int count;
-	//memset(paletteF,((length+start) * newLength / length) + newStart,256);
-	for (count = start; count < length+start; count++){
-		unsigned char rgb=(count * newLength / length) + newStart;
-		paletteF[count] = nearestIndex(rgb,rgb,rgb,video.currentPalette,256);
+	remaped = true;
+	for(int x=0;x<256;++x){
+			paletteF[x]=x;
 	}
-	for (count = 0; count < nCharacters; count++){
-		//SDL_SetPalette(characters[count], SDL_LOGPAL, palette, start, length);
-		//characters[count].start=start;
-		//characters[count].length=length;
-		//characters[count].flags|=miniS_useMap;
+	for (int count = 0; count < length; count++) {
+		paletteF[count + start] = (count * newLength / length) + newStart;
 	}
-
-	return;
-
 }
 
 
@@ -583,12 +579,7 @@ void Font::mapPalette (int start, int length, int newStart, int newLength) {
  * Restore a palette to its original state.
  */
 void Font::restorePalette () {
-
-	int count;
-	int x;
-	for(x=0;x<256;++x){
-			paletteF[x]=x;
-	}
+	remaped = false;
 	if(nCharacters>128){
 		#ifdef CASIO
 			drawStrL(4,"nCharacters>128");
@@ -598,15 +589,6 @@ void Font::restorePalette () {
 			return;
 		#endif
 	}
-	for (count = 0; count < nCharacters; count++){
-		//characters[count].flags&=~(miniS_useMap);
-		//characters[count].palette=paletteF;
-		//characters[count].start=0;
-		//characters[count].length=256;
-	}
-
-	return;
-
 }
 
 

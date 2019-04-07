@@ -47,7 +47,7 @@ extern const fixed sinLut[1024];
 
 
 // Functions
-unsigned char nearestIndex(unsigned char r,unsigned char g,unsigned char b,unsigned short * pal,unsigned short amt);
+unsigned char nearestIndex(unsigned char r,unsigned char g,unsigned char b,unsigned char * pal,unsigned short amt);
 
 EXTERN bool               fileExists           (const char *fileName);
 EXTERN unsigned short int createShort          (unsigned char* data);

@@ -248,10 +248,11 @@ int Game::playLevel (char* fileName, bool intro, bool checkpoint) {
 			#ifdef CASIO
 			baseLevel = level = new(SaveVramAddr) JJ1Level(this, fileName, checkpoint);
 			#else
-			if(!levelIDram){
+			if(levelIDram){
 				free(levelIDram);
 			}
 			levelIDram=malloc(sizeof(JJ1Level));
+			printf("Size: %zu\n", sizeof(JJ1Level));
 			baseLevel = level = new(levelIDram) JJ1Level(this, fileName, checkpoint);
 			#endif
 		/*} catch (int e) {

@@ -62,7 +62,6 @@ class File {
 		void               storeInt    (signed long int val);
 		unsigned char*		loadBlock   (int length);
 		void				loadBlock   (int length,unsigned char * buf);
-		unsigned char*		loadRLE     (int length);
 		void				loadRLE     (int length,unsigned char * buffer);
 		void               skipRLE     ();
 		//unsigned char*     loadLZ      (int compressedLength, int length);
@@ -73,6 +72,8 @@ class File {
 		void				loadPixels		(int length,unsigned char * sorted);
 		void				loadPixels		(int length, int key,unsigned char * sorted);
 		unsigned char*		loadPixels		(int length, int key);
+		void				convertPalette		(unsigned short* palette, unsigned char* buffer);
+		void				loadPalette6		(unsigned char* palette, bool rle = true);
 		void				loadPalette		(unsigned short* palette, bool rle = true);
 
 };

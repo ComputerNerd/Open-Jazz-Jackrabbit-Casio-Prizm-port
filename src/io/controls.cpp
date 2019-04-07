@@ -122,7 +122,7 @@ int Controls::getKey (int control) {
 }
 
 #ifdef CASIO
-static const unsigned short* keyboard_register = (unsigned short*)0xA44B0000;
+static const volatile unsigned short* keyboard_register = (unsigned short*)0xA44B0000;
 static int keydownlast(int basic_keycode) {
     int row, col, word, bit; 
     row = basic_keycode%10; 

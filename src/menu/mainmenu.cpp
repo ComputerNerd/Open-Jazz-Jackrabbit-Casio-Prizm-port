@@ -133,7 +133,7 @@ File * MainMenu::loadLogos(){
 			file->skipRLE();
 		}
 	} else {
-		file->loadPalette(palette);//Loads fine actully
+		file->loadPalette(palette);
 		//background = file->loadSurface(SW, SH);
 		file->loadMiniSurface(SW,SH,(unsigned char *)objs[background_id].ptr,&background);//Loaded on Casio
 		//highlight = file->loadSurface(SW, SH);
@@ -184,9 +184,13 @@ int MainMenu::select (int option) {
 	highlight_id=INVALID_OBJ;
 	background_id=INVALID_OBJ;
 	JJ1Scene *scene;
-	SetupMenu setupMenu;
+	{
+		// Ensure that the menu palette is loaded first.
+		File * file=skipLogos();
+		file->loadPalette(menuPalette);
+		delete file;
+	}
 
-	//playSound(S_ORB);
 	int ret;
 	switch (option) {
 
@@ -243,10 +247,12 @@ int MainMenu::select (int option) {
 
 		case 3: // Setup options
 
+			{SetupMenu setupMenu;
 			if (setupMenu.setupMain() == E_QUIT)
 				return E_QUIT;
 			else
 				loadLogos();
+			}
 			break;
 
 		case 4: // Order info
