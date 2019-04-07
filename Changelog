@@ -1,6 +1,14 @@
-1.04 Merge new commits from upstream.
+1.05 No more need for openjazz.000. Getting a red gem in a level works.
+Fonts now have the correct colors. Bonus stages work. No longer used a
+hard-coded VRAM address for fx-CG50 compatibility.
+
+1.04 Merged new commits from upstream.
+
 1.03 Fixed screen corruption on real hardware as a result of a syscall drawing to the screen without waiting for DMA completion.
+
 1.02 Fixed the HUD and reduced binary size. Also fixed a glitch where the program would not exit.
 Note to exit you will have to use the exit button on the menu and press EXE to exit the credits.
-1.01 Fixed a glitch where fonts would not load on the Casio Prizm
-1.00 initial release
+
+1.01 Resolved an issue where fonts would not load on the Casio Prizm.
+
+1.00 Initial release.

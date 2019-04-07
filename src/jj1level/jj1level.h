@@ -120,18 +120,22 @@
 // Datatypes
 
 /// JJ1 level grid element
-typedef struct {
+typedef struct __attribute__((packed)) {
 
 	unsigned char tile; ///< Indexes the tile set
-	unsigned char bg; ///< 0 = Effect background, 1 = Black background
-	unsigned char event; ///< Indexes the event set
-	unsigned char hits; ///< Number of times the event has been shot
-	int           time; ///< Point at which the event will do something, e.g. terminate
+	unsigned short bgEventID;
 
 } GridElement;
 
+typedef struct __attribute__((packed)) {
+	unsigned char event;
+	unsigned char hits; ///< Number of times the event has been shot
+	int           time; ///< Point at which the event will do something, e.g. terminate
+
+} GridEventElement;
+
 /// JJ1 level event type
-typedef struct {
+typedef struct __attribute__((packed)) {
 
 	unsigned char anims[6]; ///< Indices of animations
 	signed char   difficulty; ///< The minimum difficulty level at which the event is used
@@ -177,9 +181,9 @@ class JJ1Level : public Level {
 	private:
 		struct miniSurface  tileSet; ///< Tile images
 		objid_t			tileSetramid=INVALID_OBJ;
+		objid_t			eventInfoId=INVALID_OBJ;
 		struct miniSurface  panel; ///< HUD background image
 		struct miniSurface  panelAmmo[6]; ///< HUD ammo type images
-		objid_t			panelAmmoramid[6]={INVALID_OBJ,INVALID_OBJ,INVALID_OBJ,INVALID_OBJ,INVALID_OBJ,INVALID_OBJ};
 		JJ1Event*     events; ///< Active events
 		JJ1Bullet*    bullets; ///< Active bullets
 		//char*         musicFile; ///< Music file name
@@ -192,7 +196,6 @@ class JJ1Level : public Level {
 		JJ1EventType  eventSet[EVENTS]; ///< Event types
 		char          mask[240][64]; ///< Tile masks. At most 240 tiles, all with 8 * 8 masks
 		GridElement   grid[LH][LW]; ///< Level grid. All levels are the same size
-		int           soundMap[32]; ///< Maps event sound effect numbers to actual sound effect indices
 		unsigned short	skyPalette[256]; ///< Full palette for sky background
 		bool          sky; ///< Whether or not to use sky background
 		unsigned char skyOrb; ///< The tile to use as the background sun/moon/etc.
@@ -207,13 +210,22 @@ class JJ1Level : public Level {
 		fixed         energyBar; ///< HUD energy bar fullness
 		int           ammoType; ///< HUD ammo type
 		fixed         ammoOffset; ///< HUD ammo offset
+		GridEventElement *eventElms;
+		char* tileFileName;
 
 		void deletePanel  ();
 		int  loadPanel    ();
 		void loadSprite   (File* file, Sprite* sprite);
 		int  loadSprites  (char* fileName);
 		int  loadTiles    (char* fileName);
-		int  playBonus    ();
+
+		GridEventElement* getEventElement(int x, int y) {
+			unsigned eventIdx = grid[y][x].bgEventID & 0x7FFF;
+			return eventElms + eventIdx;
+		}
+		unsigned char getEventType(int x, int y) {
+			return getEventElement(x, y)->event;
+		}
 
 	protected:
 		Font* font; ///< On-screen message font

@@ -1,4 +1,4 @@
-I have ported Open Jazz jackrabbit to the Casio Prizm. Here are the controls
+I have ported Open Jazz Jackrabbit to the Casio Prizm. Here are the controls
 	keys[C_UP].key		= KEY_PRGM_UP;
 	keys[C_DOWN].key	= KEY_PRGM_DOWN;
 	keys[C_LEFT].key	= KEY_PRGM_LEFT;

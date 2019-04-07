@@ -152,13 +152,6 @@ void LocalGame::score (unsigned char team) {
  * @param gridY Y-coordinate (in tiles) of the checkpoint
  */
 void LocalGame::setCheckpoint (int gridX, int gridY) {
-	#ifdef CASIO
-		drawStrL(1,"S1");
-	#endif
 	checkX = gridX;
 	checkY = gridY;
-	#ifdef CASIO
-		drawStrL(1,"S2");
-	#endif
-	return;
 }

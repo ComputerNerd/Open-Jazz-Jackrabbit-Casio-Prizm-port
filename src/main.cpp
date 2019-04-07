@@ -458,6 +458,8 @@ unsigned char * SaveVramAddr;
 static unsigned HackRET(unsigned char*x){
 	return (unsigned)x;
 }
+#else
+unsigned char __attribute__((aligned(sizeof(uintptr_t)))) SaveVramAddr[384 * 216 * 2];
 #endif
 /**
  * Main.

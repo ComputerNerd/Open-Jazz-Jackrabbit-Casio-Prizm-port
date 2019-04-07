@@ -26,6 +26,7 @@
  *
  */
 
+#include <string.h>
 
 #include "controls.h"
 #include "gfx/video.h"
@@ -123,13 +124,29 @@ int Controls::getKey (int control) {
 
 #ifdef CASIO
 static const volatile unsigned short* keyboard_register = (unsigned short*)0xA44B0000;
+static unsigned short lastkey[8];
+static unsigned short holdkey[8];
+
+static void keyupdate(void) {
+	memcpy(holdkey, lastkey, sizeof(holdkey));
+	for (int i = 0; i < 8; ++i)
+		lastkey[i] = keyboard_register[i];
+}
 static int keydownlast(int basic_keycode) {
-    int row, col, word, bit; 
-    row = basic_keycode%10; 
-    col = basic_keycode/10-1; 
-    word = row>>1; 
-    bit = col + 8*(row&1); 
-    return (0 != (keyboard_register[word] & 1<<bit)); 
+	int row, col, word, bit; 
+	row = basic_keycode%10; 
+	col = basic_keycode/10-1; 
+	word = row>>1; 
+	bit = col + 8*(row&1); 
+	return (0 != (lastkey[word] & 1<<bit)); 
+}
+static int keydownhold(int basic_keycode) {
+	int row, col, word, bit; 
+	row = basic_keycode%10; 
+	col = basic_keycode/10-1; 
+	word = row>>1; 
+	bit = col + 8*(row&1); 
+	return (0 != (holdkey[word] & 1<<bit)); 
 }
 
 #endif
@@ -151,8 +168,13 @@ int Controls::update (SDL_Event *event, LoopType type)
 	int count;
 	count = CONTROLS;
 	#ifdef CASIO
+		keyupdate();
 		for(count=0;count<CONTROLS;++count){
-			keys[count].state=keydownlast(keys[count].key);
+			int key = keys[count].key;
+			if (keydownlast(key) && (!keydownhold(key)))
+				keys[count].state = true;
+			if ((!keydownlast(key)) && keydownhold(key))
+				keys[count].state = false;
 		}
 	#else
 	switch (event->type) {

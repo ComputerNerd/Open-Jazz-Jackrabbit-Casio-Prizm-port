@@ -59,7 +59,6 @@ Video::Video(){
 
 }
 Video::~Video(){
-	freeobj(canvasID);
 }
 
 
@@ -74,6 +73,7 @@ Video::~Video(){
  *
  * @return Success
  */
+static uint8_t videoBuf[384 * 216];
 #ifdef CASIO
 bool Video::init(void) {
 #else
@@ -96,8 +96,7 @@ bool Video::init (bool startFullscreen) {
 	#ifndef CASIO
 		SDL_WM_SetCaption("OpenJazz", NULL);
 	#endif
-	addobj(384*216,&canvasID);
-	initMiniSurface(&canvas,objs[canvasID].ptr,384,216);
+	initMiniSurface(&canvas, videoBuf, 384, 216);
 	return true;
 }
 

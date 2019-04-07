@@ -224,6 +224,13 @@ int GameMenu::newGameDifficulty (GameModeType mode, char* firstLevel) {
 		if (controls.release(C_DOWN)) difficulty = (difficulty + 1) % 4;
 
 		if (controls.release(C_ENTER)){
+			int objCount=11;
+			while(objCount--){
+				if(episodeScreensid[objCount]!=INVALID_OBJ) {
+					freeobj(episodeScreensid[objCount]);
+					episodeScreensid[objCount] = INVALID_OBJ;
+				}
+			}
 			if(difficultyScreenid!=INVALID_OBJ){
 				freeobj(difficultyScreenid);
 				difficultyScreenid=INVALID_OBJ;
@@ -444,8 +451,10 @@ int GameMenu::selectEpisode (GameModeType mode, int episode) {
 	int worldNum;
 	int count=11;
 	while(count--){
-		if(episodeScreensid[count]!=INVALID_OBJ)
+		if(episodeScreensid[count]!=INVALID_OBJ) {
 			freeobj(episodeScreensid[count]);
+			episodeScreensid[count] = INVALID_OBJ;
+		}
 	}
 	//playSound(S_ORB);
 

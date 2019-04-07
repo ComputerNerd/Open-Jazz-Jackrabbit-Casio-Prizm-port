@@ -64,10 +64,17 @@ int JJ1Level::step () {
 	for (y = FTOT(viewY) - 5; y < ITOT(FTOI(viewY) + viewH) + 5; y++) {
 
 		for (x = FTOT(viewX) - 5; x < ITOT(FTOI(viewX) + canvasW) + 5; x++) {
+			
+			GridElement* ge;
+			GridEventElement* gv;
+			if ((x >= 0) && (y >= 0) && (x < LW) && (y < LH)) {
+				ge = &grid[y][x];
+				gv = &eventElms[ge->bgEventID & 0x7FFF];
+			}
 
 			if ((x >= 0) && (y >= 0) && (x < LW) && (y < LH) &&
-				grid[y][x].event && (grid[y][x].event < 121) &&
-				(eventSet[grid[y][x].event].difficulty <= game->getDifficulty())) {
+				(ge->bgEventID & 0x7FFF) && ((gv->event) < 121) &&
+				((eventSet[gv->event]).difficulty <= game->getDifficulty())) {
 
 				event = events;
 
@@ -105,7 +112,7 @@ int JJ1Level::step () {
 
 						default:
 
-							events = new JJ1StandardEvent(eventSet + grid[y][x].event, x, y, TTOF(x), TTOF(y + 1));
+							events = new JJ1StandardEvent(eventSet + gv->event, x, y, TTOF(x), TTOF(y + 1));
 
 							break;
 
@@ -287,17 +294,19 @@ void JJ1Level::draw () {
 
 			// Get the grid element from the given coordinates
 			ge = grid[y + ITOT(vY)] + x + ITOT(vX);
+			GridEventElement* gv = &eventElms[ge->bgEventID & 0x7FFF];
+			unsigned char ev = gv->event;
 
 			// If this tile uses a black background, draw it
-			if (ge->bg)
+			if (ge->bgEventID & (1 << 15))
 				drawRect(TTOI(x) - (vX & 31), TTOI(y) - (vY & 31), 32, 32, LEVEL_BLACK);
 
 
 			// If this is not a foreground tile, draw it
-			if ((ge->event != 124) &&
-				(ge->event != 125) &&
-				(eventSet[ge->event].movement != 37) &&
-				(eventSet[ge->event].movement != 38)) {
+			if ((ev != 124) &&
+				(ev != 125) &&
+				(eventSet[ev].movement != 37) &&
+				(eventSet[ev].movement != 38)) {
 
 				//dst.x = TTOI(x) - (vX & 31);
 				//dst.y = TTOI(y) - (vY & 31);
@@ -334,23 +343,24 @@ void JJ1Level::draw () {
 
 			// Get the grid element from the given coordinates
 			ge = grid[y + ITOT(vY)] + x + ITOT(vX);
+			unsigned char ev = eventElms[ge->bgEventID & 0x7FFF].event;
 
 			// If this is an "animated" foreground tile, draw it
-			if (ge->event == 123) {
+			if (ev == 123) {
 
 				//dst.x = TTOI(x) - (vX & 31);
 				//dst.y = TTOI(y) - (vY & 31);
-				if (ticks & 64) src[1] = TTOI(eventSet[ge->event].multiB);
-				else src[1] = TTOI(eventSet[ge->event].multiA);
+				if (ticks & 64) src[1] = TTOI(eventSet[ev].multiB);
+				else src[1] = TTOI(eventSet[ev].multiA);
 				//SDL_BlitSurface(tileSet, &src, canvas, &dst);
 				blitPartToCanvas(&tileSet,TTOI(x) - (vX & 31),TTOI(y) - (vY & 31),src);
 			}
 
 			// If this is a foreground tile, draw it
-			if ((ge->event == 124) ||
-				(ge->event == 125) ||
-				(eventSet[ge->event].movement == 37) ||
-				(eventSet[ge->event].movement == 38)) {
+			if ((ev == 124) ||
+				(ev == 125) ||
+				(eventSet[ev].movement == 37) ||
+				(eventSet[ev].movement == 38)) {
 
 				//dst.x = TTOI(x) - (vX & 31);
 				//dst.y = TTOI(y) - (vY & 31);

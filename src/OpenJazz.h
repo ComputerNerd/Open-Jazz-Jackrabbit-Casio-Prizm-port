@@ -133,6 +133,7 @@
 
 #define WON          1
 #define LOST         2
+#define WON_WITH_BONUS          3
 #define JOYSTICKB    0x100
 #define JOYSTICKANEG 0x200
 #define JOYSTICKAPOS 0x300

@@ -110,10 +110,6 @@ void JJ1Level::deletePanel () {
 	if(rle_panel)
 		free(rle_panel);
 	rle_panel=0;
-	for(unsigned char x=0;x<6;++x){
-		if(panelAmmoramid[x]!=INVALID_OBJ)
-			freeobj(panelAmmoramid[x]);
-	}
 }
 
 
@@ -142,12 +138,17 @@ JJ1Level::~JJ1Level () {
 
 	delete[] spriteSet;
 
-	//SDL_FreeSurface(tileSet);
 	if(tileSetramid!=INVALID_OBJ)
 		freeobj(tileSetramid);
+
+	if(eventInfoId!=INVALID_OBJ)
+		freeobj(eventInfoId);
+
 	deletePanel();
 
 	delete font;
+
+	delete[] tileFileName;
 
 	return;
 
@@ -171,9 +172,10 @@ bool JJ1Level::checkMaskUp (fixed x, fixed y) {
 		return true;
 
 	ge = grid[FTOT(y)] + FTOT(x);
+	unsigned char ev = eventElms[ge->bgEventID & 0x7FFF].event;
 
 	// JJ1Event 122 is one-way
-	if (ge->event == 122) return false;
+	if (ev == 122) return false;
 
 	// Check the mask in the tile in question
 	return mask[ge->tile][((y >> 9) & 56) + ((x >> 12) & 7)];
@@ -218,9 +220,10 @@ bool JJ1Level::checkSpikes (fixed x, fixed y) {
 	if ((x < 0) || (y < 0) || (x > TTOF(LW))) return false;
 
 	ge = grid[FTOT(y)] + FTOT(x);
+	unsigned char ev = eventElms[ge->bgEventID & 0x7FFF].event;
 
 	// JJ1Event 126 is spikes
-	if (ge->event != 126) return false;
+	if (ev != 126) return false;
 
 	// Check the mask in the tile in question
 	return mask[ge->tile][((y >> 9) & 56) + ((x >> 12) & 7)];
@@ -285,8 +288,7 @@ JJ1Event* JJ1Level::getEvents () {
  * @return JJ1Event data
  */
 JJ1EventType* JJ1Level::getEvent (unsigned char gridX, unsigned char gridY) {
-
-	int event = grid[gridY][gridX].event;
+	int event = eventElms[grid[gridY][gridX].bgEventID & 0x7FFF].event;
 
 	if (event) return eventSet + event;
 
@@ -304,9 +306,7 @@ JJ1EventType* JJ1Level::getEvent (unsigned char gridX, unsigned char gridY) {
  * @return Number of hits
  */
 unsigned char JJ1Level::getEventHits (unsigned char gridX, unsigned char gridY) {
-
-	return grid[gridY][gridX].hits;
-
+	return eventElms[grid[gridY][gridX].bgEventID & 0x7FFF].hits;
 }
 
 
@@ -319,9 +319,7 @@ unsigned char JJ1Level::getEventHits (unsigned char gridX, unsigned char gridY) 
  * @return Time
  */
 unsigned int JJ1Level::getEventTime (unsigned char gridX, unsigned char gridY) {
-
-	return grid[gridY][gridX].time;
-
+	return eventElms[grid[gridY][gridX].bgEventID & 0x7FFF].time;
 }
 
 
@@ -334,10 +332,12 @@ unsigned int JJ1Level::getEventTime (unsigned char gridX, unsigned char gridY) {
 void JJ1Level::clearEvent (unsigned char gridX, unsigned char gridY) {
 
 	// Ignore if the event has been un-destroyed
-	if (!grid[gridY][gridX].hits &&
-		eventSet[grid[gridY][gridX].event].strength) return;
+	GridElement *ge = &grid[gridY][gridX];
+	GridEventElement* gv = &eventElms[ge->bgEventID & 0x7FFF];
+	if (!gv->hits &&
+		eventSet[gv->event].strength) return;
 
-	grid[gridY][gridX].event = 0;
+	ge->bgEventID &= 1 << 15; // Only keep the background bit.
 }
 
 
@@ -357,33 +357,34 @@ int JJ1Level::hitEvent (unsigned char gridX, unsigned char gridY, int hits, JJ1L
 	GridElement* ge;
 	int hitsToKill;
 	ge = grid[gridY] + gridX;
-	hitsToKill = eventSet[ge->event].strength;
+	GridEventElement* gv = &eventElms[ge->bgEventID & 0x7FFF];
+	unsigned char ev = gv->event;
+	hitsToKill = eventSet[ev].strength;
 	// If the event cannot be hit, return negative
-	if (!hitsToKill || (ge->hits == 255)) return -1;
+	if (!hitsToKill || (gv->hits == 255)) return -1;
 
 	// If the event has already been destroyed, do nothing
-	if (ge->hits >= hitsToKill) return 0;
+	if (gv->hits >= hitsToKill) return 0;
 
 	// Check if the event has been killed
-	if (ge->hits + hits >= hitsToKill) {
+	if (gv->hits + hits >= hitsToKill) {
 
 		// Notify the player that shot the bullet
 		// If this returns false, ignore the hit
-		if (!source->takeEvent(eventSet + ge->event, gridX, gridY, ticks)) {
+		if (!source->takeEvent(eventSet + ev, gridX, gridY, ticks)) {
 
-			return hitsToKill - ge->hits;
+			return hitsToKill - gv->hits;
 
 		}
 
-		ge->hits = (hits == 255)? 255: hitsToKill;
-		ge->time = time;
+		gv->hits = (hits == 255)? 255: hitsToKill;
+		gv->time = time;
 
 	} else {
-
-		ge->hits += hits;
+		gv->hits += hits;
 
 	}
-	return hitsToKill - ge->hits;
+	return hitsToKill - gv->hits;
 }
 
 
@@ -395,11 +396,7 @@ int JJ1Level::hitEvent (unsigned char gridX, unsigned char gridY, int hits, JJ1L
  * @param time Time
  */
 void JJ1Level::setEventTime (unsigned char gridX, unsigned char gridY, unsigned int time) {
-
-	grid[gridY][gridX].time = time;
-
-	return;
-
+	getEventElement(gridX, gridY)->time = time;
 }
 
 
@@ -560,43 +557,12 @@ void JJ1Level::flash (unsigned char red, unsigned char green, unsigned char blue
 
 }
 
-
-/**
- * Play the bonus level.
- *
- * @return Error code
- */
-int JJ1Level::playBonus () {
-
-	char *bonusFile;
-	int ret;
-
-	if (!localPlayer->getJJ1LevelPlayer()->hasGem()) return E_NONE;
-
-	delete paletteEffects;
-	paletteEffects = NULL;
-
-	bonusFile = createFileName(F_BONUSMAP, 0);
-
-	// If the gem has been collected, play the bonus level
-	ret = game->playLevel(bonusFile);
-
-	delete[] bonusFile;
-
-	return ret;
-
-}
-
 /**
  * Play the level.
  *
  * @return Error code
  */
 int JJ1Level::play () {
-	unsigned char pa=5;
-	while(pa--){
-		level->panelAmmo[pa].pix=(unsigned char *)objs[panelAmmoramid[pa]].ptr;
-	}
 	JJ1LevelPlayer* levelPlayer;
 	char *string;
 	bool pmessage, pmenu;
@@ -632,13 +598,6 @@ int JJ1Level::play () {
 
 		// Check if level has been won
 		if (game && returnTime && (ticks > returnTime)) {
-
-			// If the gem has been collected, play the bonus level
-			ret = playBonus();
-
-			if (ret < 0) return ret;
-
-
 			if (nextLevelNum == 99) {
 
 				if (playScene(sceneFile) == E_QUIT) return E_QUIT;
@@ -655,7 +614,7 @@ int JJ1Level::play () {
 
 			if (ret < 0) return ret;
 
-			return WON;
+			return localPlayer->getJJ1LevelPlayer()->hasGem() ? WON_WITH_BONUS : WON;
 
 		}
 

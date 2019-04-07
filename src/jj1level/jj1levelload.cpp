@@ -35,6 +35,7 @@
 #include "jj1event/jj1event.h"
 #include "jj1level.h"
 #include "jj1levelplayer/jj1levelplayer.h"
+#include "../jj1bonuslevel/jj1bonuslevel.h"
 
 #include "game/game.h"
 #include "io/file.h"
@@ -64,6 +65,7 @@
  *
  * @return Error code
  */
+static unsigned char ammobuf[6 * 64 * 26];
 int JJ1Level::loadPanel () {
 
 	File* file;
@@ -99,8 +101,7 @@ int JJ1Level::loadPanel () {
 	// De-scramble the panel's ammo graphics
 
 	for (type = 0; type < 6; type++) {
-		addobj(64*26,&panelAmmoramid[type]);
-		sorted=(unsigned char *)objs[panelAmmoramid[type]].ptr;
+		sorted=(unsigned char *)ammobuf + (64 * 26 * type);
 
 		for (y = 0; y < 26; y++) {
 
@@ -327,6 +328,9 @@ try{
  *
  * @return The number of tiles loaded
  */
+#ifdef CASIO
+#define uintptr_t unsigned
+#endif
 int JJ1Level::loadTiles(char* fileName) {
 try{
 	unsigned char* buffer;
@@ -415,7 +419,13 @@ try{
 	//SDL_SetColorKey(tileSet, SDL_SRCCOLORKEY, TKEY);
 	setColKey(&tileSet,TKEY);
 	//delete[] buffer;
-	resizeobj(tileSetramid, TTOI(1)*TTOI(tiles));
+#ifndef CASIO
+	printf("Loaded %d tiles.\n", tiles);
+#endif
+	unsigned tileBytes = TTOI(1)*TTOI(tiles);
+	if (tileBytes < sizeof(JJ1BonusLevel) + sizeof(uintptr_t))
+		tileBytes = sizeof(JJ1BonusLevel) + sizeof(uintptr_t);
+	resizeobj(tileSetramid, tileBytes);
 	return tiles;
 }catch(int e){
 	#ifdef CASIO
@@ -618,36 +628,6 @@ int JJ1Level::load (char* fileName, bool checkpoint) {
 	// Load the world number
 	worldNum = file->loadChar() ^ 4;
 
-
-	// Load tile set from appropriate blocks.###
-
-	// Load tile set extension
-	file->seek(8, false);
-	ext = file->loadString();
-
-	// Create tile set file name
-	if (!strcmp(ext, "999")) string = createFileName(F_BLOCKS, worldNum);
-	else string = createFileName(F_BLOCKS, ext);
-
-	delete[] ext;
-	#ifdef CASIO
-		drawStrL(2,"Tiles");
-	#endif
-	tiles = loadTiles(string);
-
-	delete[] string;
-
-	if (tiles < 0) {
-
-		delete file;
-		deletePanel();
-		delete font;
-
-		return tiles;
-
-	}
-
-
 	// Load sprite set from corresponding Sprites.###
 
 	string = createFileName(F_SPRITES, worldNum);
@@ -671,6 +651,35 @@ int JJ1Level::load (char* fileName, bool checkpoint) {
 
 	}
 
+	
+	// Load tile set from appropriate blocks.###
+
+	// Load tile set extension
+	file->seek(8, false);
+	ext = file->loadString();
+
+	// Create tile set file name
+	if (!strcmp(ext, "999")) tileFileName = createFileName(F_BLOCKS, worldNum);
+	else tileFileName = createFileName(F_BLOCKS, ext);
+
+	delete[] ext;
+	#ifdef CASIO
+		drawStrL(2,"Tiles");
+	#endif
+	tiles = loadTiles(tileFileName);
+
+	if (tiles < 0) {
+
+		delete file;
+		deletePanel();
+		delete font;
+
+		return tiles;
+
+	}
+
+
+
 
 	// Skip to tile and event reference data
 	file->seek(39, true);
@@ -690,19 +699,32 @@ int JJ1Level::load (char* fileName, bool checkpoint) {
 	file->loadRLE(LW * LH * 2,buffer);
 
 	// Create grid from data
+	unsigned eventID = 0;
+	addobj(sizeof(GridEventElement), &eventInfoId);
+	eventElms = (GridEventElement* )objs[eventInfoId].ptr;
+	memset(eventElms, 0, sizeof(GridEventElement));
 	for (x = 0; x < LW;++x){
 
 		for (y = 0; y < LH;++y) {
 
 			grid[y][x].tile = buffer[(y + (x * LH)) << 1];
-			grid[y][x].bg = buffer[((y + (x * LH)) << 1) + 1] >> 7;
-			grid[y][x].event = buffer[((y + (x * LH)) << 1) + 1] & 127;
-			grid[y][x].hits = 0;
-			grid[y][x].time = 0;
+			unsigned char bgEvent = buffer[((y + (x * LH)) << 1) + 1];
+			if (bgEvent & 127) {
+				++eventID;
+				resizeobj(eventInfoId, sizeof(GridEventElement) * (eventID + 1));
+				eventElms[eventID].event = bgEvent & 127;
+				eventElms[eventID].hits = 0;
+				eventElms[eventID].time = 0;
+				grid[y][x].bgEventID = ((bgEvent >> 7) << 15) | eventID;
+			} else
+				grid[y][x].bgEventID = (bgEvent >> 7) << 15;
 
 		}
 
 	}
+#ifndef CASIO
+	printf("Nonzero event count %d.\n", eventID);
+#endif
 	free(buffer);
 	//delete[] buffer;
 
@@ -824,7 +846,7 @@ int JJ1Level::load (char* fileName, bool checkpoint) {
 
 		for (y = 0; y < LH; y++) {
 
-			type = grid[y][x].event;
+			type = getEventType(x, y);
 
 			if (type) {
 

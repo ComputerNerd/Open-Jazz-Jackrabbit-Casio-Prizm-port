@@ -157,17 +157,22 @@ void Game::setDifficulty (int diff) {
 	return;
 
 }
-#ifndef CASIO
-void * levelIDram=0;
-#endif
 #ifdef CASIO
 extern unsigned char * SaveVramAddr;
+#define uintptr_t unsigned
+#else
+extern unsigned char SaveVramAddr[];
 #endif
 /**
  * Play a level.
  *
  * @return Error code
  */
+unsigned char * alignPtr(uintptr_t p) {
+	if (p & (sizeof(uintptr_t) - 1))
+		p += sizeof(uintptr_t) - (p & (sizeof(uintptr_t) - 1));
+	return (unsigned char *)p;
+}
 int Game::playLevel (char* fileName, bool intro, bool checkpoint) {
 	int ret;
 	if (!strncasecmp(fileName, "MACRO", 5)) {
@@ -201,26 +206,10 @@ int Game::playLevel (char* fileName, bool intro, bool checkpoint) {
 			drawStrL(2,"Game::playLevel 2");
 		#endif
 		JJ1BonusLevel *bonus;
-		#ifdef CASIO
-			baseLevel = bonus = new(SaveVramAddr) JJ1BonusLevel(this, fileName);
-
-		#else
-		try {
-			//printf("sizeof(JJ1BonusLevel)=%d\n",sizeof(JJ1BonusLevel));
-			baseLevel = bonus = new JJ1BonusLevel(this, fileName);
-
-		} catch (int e) {
-
-			return e;
-
-		}
-		#endif
+		baseLevel = bonus = new(SaveVramAddr) JJ1BonusLevel(this, fileName);
 		ret = bonus->play();
-		#ifdef CASIO
 		bonus->~JJ1BonusLevel();
-		#else
-		delete bonus;
-		#endif
+
 		baseLevel = NULL;
 
 	} /*else if (levelType == LT_JJ2) {
@@ -244,24 +233,7 @@ int Game::playLevel (char* fileName, bool intro, bool checkpoint) {
 		#ifdef CASIO
 			drawStrL(2,"Game::playLevel 3");
 		#endif
-		//try {
-			#ifdef CASIO
-			baseLevel = level = new(SaveVramAddr) JJ1Level(this, fileName, checkpoint);
-			#else
-			if(levelIDram){
-				free(levelIDram);
-			}
-			levelIDram=malloc(sizeof(JJ1Level));
-			printf("Size: %zu\n", sizeof(JJ1Level));
-			baseLevel = level = new(levelIDram) JJ1Level(this, fileName, checkpoint);
-			#endif
-		/*} catch (int e) {
-			#ifdef CASIO
-				casioQuit("baseLevel cannot be created heap full?");
-			#endif
-			return e;
-
-		}*/
+		baseLevel = level = new(SaveVramAddr) JJ1Level(this, fileName, checkpoint);
 		if (intro) {
 
 			JJ1Planet *planet;
@@ -293,9 +265,6 @@ int Game::playLevel (char* fileName, bool intro, bool checkpoint) {
 					delete planet;
 					//delete level;
 					level->~JJ1Level();//allocated differently
-					#ifndef CASIO
-					free(levelIDram);
-					#endif
 					return E_QUIT;
 				}
 				planetId = planet->getId();
@@ -304,13 +273,17 @@ int Game::playLevel (char* fileName, bool intro, bool checkpoint) {
 			}
 		}
 		ret = level->play();
-
-		//delete level;
 		level->~JJ1Level();
-		#ifndef CASIO
-		free(levelIDram);
-		#endif
+
 		baseLevel = level = NULL;
+		if (ret == WON_WITH_BONUS) {
+			char * bonusFile = createFileName(F_BONUSMAP, 0);
+			LevelType oldLevelType = levelType; 
+			playLevel(bonusFile);
+			levelType = oldLevelType;
+			delete[] bonusFile;
+			ret = WON;
+		}
 
 	}
 
