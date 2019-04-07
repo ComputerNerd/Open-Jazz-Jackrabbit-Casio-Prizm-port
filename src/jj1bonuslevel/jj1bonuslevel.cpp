@@ -157,7 +157,7 @@ int JJ1BonusLevel::loadTiles (char *fileName) {
 
 	// Load background
 	{
-	unsigned char * pixels = (unsigned char *)alloca(832*20);
+	unsigned char pixels[832 * 20];
 	file->loadRLE(832 * 20,pixels);
 	//sorted = new unsigned char[512 * 20];
 	addobj(512*20,&backgroundid);
@@ -218,7 +218,6 @@ JJ1BonusLevel::JJ1BonusLevel (Game* owner, char * fileName) : Level(owner) {
 	#endif
 	Anim* pAnims[BPANIMS];
 	File *file;
-	unsigned char *buffer;
 	char *string, *fileString;
 	int count, x, y;
 
@@ -293,32 +292,33 @@ JJ1BonusLevel::JJ1BonusLevel (Game* owner, char * fileName) : Level(owner) {
 		drawStrL(2,"Animations");
 	#endif
 	file->seek(134, true);
-	buffer = file->loadBlock(BANIMS << 6);
+	{
+		unsigned char buffer[BANIMS << 6];
+		file->loadBlock(BANIMS << 6, buffer);
 
-	// Create animation set based on that data
-	for (count = 0; count < BANIMS; count++) {
+		// Create animation set based on that data
+		for (count = 0; count < BANIMS; count++) {
 
-		animSet[count].setData(buffer[(count << 6) + 6],
-			buffer[count << 6], buffer[(count << 6) + 1],
-			buffer[(count << 6) + 3], buffer[(count << 6) + 4],
-			buffer[(count << 6) + 2], buffer[(count << 6) + 5]);
+			animSet[count].setData(buffer[(count << 6) + 6],
+				buffer[count << 6], buffer[(count << 6) + 1],
+				buffer[(count << 6) + 3], buffer[(count << 6) + 4],
+				buffer[(count << 6) + 2], buffer[(count << 6) + 5]);
 
-		for (y = 0; y < buffer[(count << 6) + 6]; y++) {
+			for (y = 0; y < buffer[(count << 6) + 6]; y++) {
 
-			// Get frame
-			x = buffer[(count << 6) + 7 + y];
-			if (x > sprites) x = sprites;
+				// Get frame
+				x = buffer[(count << 6) + 7 + y];
+				if (x > sprites) x = sprites;
 
-			// Assign sprite and vertical offset
-			animSet[count].setFrame(y, true);
-			animSet[count].setFrameData(spriteSet + x,
-				buffer[(count << 6) + 26 + y], buffer[(count << 6) + 45 + y]);
+				// Assign sprite and vertical offset
+				animSet[count].setFrame(y, true);
+				animSet[count].setFrameData(spriteSet + x,
+					buffer[(count << 6) + 26 + y], buffer[(count << 6) + 45 + y]);
+
+			}
 
 		}
-
 	}
-
-	delete[] buffer;
 
 
 	// Load tiles
@@ -326,21 +326,15 @@ JJ1BonusLevel::JJ1BonusLevel (Game* owner, char * fileName) : Level(owner) {
 		drawStrL(2,"Layout");
 	#endif
 	file->seek(2694, true);
-	buffer = file->loadRLE(BLW * BLH);
+	file->loadRLE(BLW * BLH, (unsigned char*)gridTiles);
 
 	for (y = 0; y < BLH; y++) {
-
 		for (x = 0; x < BLW; x++) {
-
-			grid[y][x].tile = buffer[x + (y * BLW)];
-
-			if (grid[y][x].tile > 59) grid[y][x].tile = 59;
+			if (gridTiles[y][x] > 59) gridTiles[y][x] = 59;
 
 		}
 
 	}
-
-	delete[] buffer;
 
 
 	file->skipRLE(); // Mysterious block
@@ -348,20 +342,7 @@ JJ1BonusLevel::JJ1BonusLevel (Game* owner, char * fileName) : Level(owner) {
 
 	// Load events
 
-	buffer = file->loadRLE(BLW * BLH);
-
-	for (y = 0; y < BLW; y++) {
-
-		for (x = 0; x < BLH; x++) {
-
-			grid[y][x].event = buffer[x + (y * BLW)];
-
-		}
-
-	}
-
-	delete[] buffer;
-
+	file->loadRLE(BLW * BLH, (unsigned char*)gridEvents);
 
 	file->seek(178, false);
 
@@ -451,17 +432,14 @@ bool JJ1BonusLevel::isEvent (fixed x, fixed y) {
  * @return Solidity
  */
 bool JJ1BonusLevel::checkMask (fixed x, fixed y) {
-
-	JJ1BonusLevelGridElement *ge;
-
-	ge = grid[FTOT(y) & 255] + (FTOT(x) & 255);
+	int xi = (FTOT(x) & 255);
+	int yi = (FTOT(y) & 255);
 
 	// Hand
-	if ((ge->event == 3) && isEvent(x, y)) return true;
+	if ((gridEvents[yi][xi] == 3) && isEvent(x, y)) return true;
 
 	// Check the mask in the tile in question
-	return mask[ge->tile][((y >> 9) & 56) + ((x >> 12) & 7)];
-
+	return mask[gridTiles[yi][xi]][((y >> 9) & 56) + ((x >> 12) & 7)];
 }
 
 
@@ -501,19 +479,19 @@ int JJ1BonusLevel::step () {
 			gridX = FTOT(playerX) & 255;
 			gridY = FTOT(playerY) & 255;
 
-			switch (grid[gridY][gridX].event) {
+			switch (gridEvents[gridY][gridX]) {
 
 				case 1: // Extra time
 
 					addTimer(60);
-					grid[gridY][gridX].event = 0;
+					gridEvents[gridY][gridX] = 0;
 
 					break;
 
 				case 2: // Gem
 
 					bonusPlayer->addGem();
-					grid[gridY][gridX].event = 0;
+					gridEvents[gridY][gridX] = 0;
 
 					if (bonusPlayer->getGems() >= items) {
 
@@ -608,7 +586,7 @@ void JJ1BonusLevel::draw() {
 			levelX = FTOI(fwdX + MUL(nX, sideX));
 			levelY = FTOI(fwdY + MUL(nX, sideY));
 
-			*row++ = tileSet.pix[(grid[ITOT(levelY) & 255][ITOT(levelX) & 255].tile << 10) + ((levelY & 31) * tileSet.w) + (levelX & 31)];
+			*row++ = tileSet.pix[(gridTiles[ITOT(levelY) & 255][ITOT(levelX) & 255] << 10) + ((levelY & 31) * tileSet.w) + (levelX & 31)];
 
 		}
 
@@ -630,7 +608,7 @@ void JJ1BonusLevel::draw() {
 
 			if (FTOI(divisor) > 8) {
 
-				switch (grid[((((direction - FQ) & 512)? y: -y) + FTOT(playerY)) & 255][(((direction & 512)? x: -x) + FTOT(playerX)) & 255].event) {
+				switch (gridEvents[((((direction - FQ) & 512)? y: -y) + FTOT(playerY)) & 255][(((direction & 512)? x: -x) + FTOT(playerX)) & 255]) {
 
 					case 0: // No event
 

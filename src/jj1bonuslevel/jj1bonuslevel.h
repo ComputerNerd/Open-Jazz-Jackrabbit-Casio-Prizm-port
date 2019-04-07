@@ -42,18 +42,6 @@
 
 #define T_BONUS_END 2000
 
-
-// Datatype
-
-/// JJ1 bonus level grid element
-typedef struct {
-
-	unsigned char tile;  ///< Indexes the tile set
-	unsigned char event; ///< Event type
-
-} JJ1BonusLevelGridElement;
-
-
 // Classes
 
 class Font;
@@ -69,7 +57,8 @@ class JJ1BonusLevel : public Level {
 		Font*						font; ///< On-screen message font
 		Sprite*						spriteSet; ///< Sprite images
 		Anim						animSet[BANIMS]; ///< Animations
-		JJ1BonusLevelGridElement	grid[BLH][BLW]; ///< Level grid
+		unsigned char	gridTiles[BLH][BLW]; ///< Level grid
+		unsigned char	gridEvents[BLH][BLW]; ///< Level grid
 		char						mask[60][64]; ///< Tile masks (at most 60 tiles, all with 8 * 8 masks)
 		fixed						direction; ///< Player's direction
 
