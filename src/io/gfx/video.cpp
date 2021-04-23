@@ -348,7 +348,7 @@ void Video::clearScreen (int index) {
 	// always 240 lines cleared to black
 	memset(video.screen->pixels, index, 320*240);
 #else
-	memset(canvas.pix,index,canvasW*canvasH);
+	memset(canvas.pix, index, canvasW * canvasH);
 #endif
 
 	return;

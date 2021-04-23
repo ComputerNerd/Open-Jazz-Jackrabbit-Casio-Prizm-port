@@ -320,7 +320,6 @@ Main::~Main () {
  */
 int Main::play() {
 
-	JJ1Scene *scene = NULL;
 	// Load and play the startup cutscene
 	/*#ifdef CASIO
 	PrintXY(1,4,"  Scene",0x20,TEXT_COLOR_WHITE);
@@ -379,9 +378,8 @@ int Main::play() {
 	// Load and play the ending cutscene
 
 	try {
-
-		scene = new JJ1Scene(F_END_0SC);
-
+		JJ1Scene scene(F_END_0SC);
+		scene.play();
 	} catch (int e) {
 		#ifdef CASIO
 		casioQuit("error new JJ1Scene (end)");
@@ -389,10 +387,6 @@ int Main::play() {
 		return e;
 
 	}
-
-	scene->play();
-
-	delete scene;
 
 
 	return E_NONE;
@@ -471,6 +465,7 @@ int main(void){
 	//Main* mainObj;
 	#ifdef CASIO
 		Bdisp_EnableColor(1);
+		FrameColor(1, 0);
 		vramAddress=(uint16_t *)GetVRAMAddress();
 		memset(vramAddress,0,384*216*2);
 		PrintXY(1,1,"Loading..."-2,0x20,TEXT_COLOR_WHITE);

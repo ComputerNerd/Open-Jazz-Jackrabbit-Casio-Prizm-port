@@ -39,6 +39,8 @@
 
 #include <string.h>
 #ifdef CASIO
+#include <fxcg/keyboard.h>
+#include <fxcg/misc.h>
 #include "platforms/casio.h"
 #include <alloca.h>
 #endif
@@ -136,6 +138,11 @@ int JJ1Planet::play () {
 
 	unsigned int tickOffset;
 
+	if (loop(NORMAL_LOOP) == E_QUIT) {
+		// The loop is in charge of updating globalTicks. The loop has not ran in a long time so the value of globalTicks is very old. This can cause the planet intro to not show if we don't update it.
+		return E_QUIT;
+	}
+
 	tickOffset = globalTicks;
 
 	//stopMusic();
@@ -144,9 +151,13 @@ int JJ1Planet::play () {
 
 	while (true) {
 
-		if (loop(NORMAL_LOOP) == E_QUIT) return E_QUIT;
+		if (loop(NORMAL_LOOP) == E_QUIT) {
+			return E_QUIT;
+		}
 
-		if (controls.release(C_ESCAPE)) return E_NONE;
+		if (controls.release(C_ESCAPE)) {
+			return E_NONE;
+		}
 		#ifdef CASIO
 			casioDelay(T_FRAME);
 		#else
@@ -154,13 +165,17 @@ int JJ1Planet::play () {
 		#endif
 		video.clearScreen(0);
 
-		if (globalTicks - tickOffset < F2)
+		unsigned tickDiff = globalTicks - tickOffset;
+
+		if (tickDiff < F2)
 			sprite.drawScaled(canvasW >> 1, canvasH >> 1, globalTicks - tickOffset);
-		else if (globalTicks - tickOffset < F4)
+		else if (tickDiff < F4)
 			sprite.drawScaled(canvasW >> 1, canvasH >> 1, F2);
-		else if (globalTicks - tickOffset < F4 + FQ)
+		else if (tickDiff < F4 + FQ)
 			sprite.drawScaled(canvasW >> 1, canvasH >> 1, (globalTicks - tickOffset - F4) * 32 + F2);
-		else return E_NONE;
+		else  {
+			return E_NONE;
+		}
 
 		fontmn1->showString("now approaching", (canvasW - 288) >> 1, 0);
 		fontmn1->showString(name, (canvasW - fontmn1->getStringWidth(name)) >> 1, canvasH - 24);

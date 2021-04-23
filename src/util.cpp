@@ -69,16 +69,14 @@ unsigned char nearestIndex(unsigned char ri,unsigned char gi,unsigned char bi,un
  * @return Whether or not the file exists
  */
 bool fileExists (const char * fileName) {
-	File *file;
 #ifdef VERBOSE
 	printf("Check: ");
 #endif
 	try {
-		file = new File(fileName, false);
+		File file(fileName, false);
 	} catch (int e) {
 		return false;
 	}
-	delete file;
 	return true;
 }
 
