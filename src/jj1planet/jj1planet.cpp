@@ -95,7 +95,7 @@ JJ1Planet::JJ1Planet (char * fileName, int previous) {
 	// Load the planet image
 	//pixels = file->loadBlock(64 * 55);
 	{
-		unsigned char * pixels=(unsigned char *)alloca(64*55);
+		unsigned char pixels[64*55];
 		file->loadBlock(64 * 55,pixels);
 		sprite.setPixels(pixels, 64, 55, 0);
 	}
