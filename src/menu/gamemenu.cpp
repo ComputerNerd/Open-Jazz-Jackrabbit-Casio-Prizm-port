@@ -393,7 +393,7 @@ int GameMenu::newGameLevel (GameModeType mode) {
 	char* fileName;
 	int ret;
 
-	fileName = createString("level0.000");
+	fileName = createString("LEVEL0.000");
 
 	ret = E_NONE;
 
@@ -402,6 +402,12 @@ int GameMenu::newGameLevel (GameModeType mode) {
 		ret = textInput("level file name:", fileName);
 
 		if (ret < 0) break;
+
+		if (!fileExists(fileName)) {
+			video.clearScreen(0);
+			if (message("File not found.") == E_QUIT) return E_QUIT;
+			break;
+		}
 
 		ret = newGameDifficulty(mode, fileName);
 

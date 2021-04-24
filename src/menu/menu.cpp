@@ -214,7 +214,7 @@ int Menu::textInput (const char* request, char*& text) {
 
 			} else if ((character >= 'A') && (character <= 'Z')) {
 
-				input[cursor] = character | 32;
+				input[cursor] = character;
 				cursor++;
 				if (terminate) input[cursor] = 0;
 
