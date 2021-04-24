@@ -30,8 +30,8 @@ OpenJazz: $(objects)
 	cc -Wall -o OpenJazz -lSDL -lstdc++ -flto $(objects)
 
 %.o: %.cpp
-	cc -Wall -Wextra -Isrc -O0 -ggdb3 -pipe -c $< -o $@
+	cc -Wall -Wextra -DVERBOSE -Isrc -O0 -ggdb3 -pipe -c $< -o $@
 %.o: %.c
-	cc -Wall -Wextra -Isrc -O0 -ggdb3 -pipe -c $< -o $@
+	cc -Wall -Wextra -DVERBOSE -Isrc -O0 -ggdb3 -pipe -c $< -o $@
 clean:
 	rm -f OpenJazz $(objects)

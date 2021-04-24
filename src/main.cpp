@@ -492,8 +492,20 @@ int main(void){
 	// Save configuration and shut down
 
 	//delete mainObj;
-	#ifndef CASIO
+#ifdef CASIO
+	memset(vramAddress,0,384*216*2);
+	Bdisp_PutDisp_DD();
+	drawStrL(1, "Thank you for");
+	drawStrL(2, "playing the OpenJazz");
+	drawStrL(3, "Casio Prizm port.");
+	drawStrL(4, "Port by");
+	drawStrL(5, "ProgrammerNerd.");
+	while (1) {
+		int key;
+		GetKey(&key);
+	}
+#else
 	SDL_Quit();
-	#endif
+#endif
 	//return ret;
 }

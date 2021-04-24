@@ -455,7 +455,6 @@ void JJ1Scene::loadAni (File *f, int dataIndex) {
 						{
 							/*unsigned char soundIndex = */f->loadChar();//skip sound
 							//animations->lastFrame->soundId = soundIndex;
-							LOG("PL Audio tag with index", soundIndex);
 							LOGRESULT("PL Audio tag play at ", f->loadChar());
 							LOGRESULT("PL Audio tag play offset ", f->loadChar());
 						}
@@ -515,7 +514,7 @@ void JJ1Scene::loadAni (File *f, int dataIndex) {
  *
  * @param f File from which to load the data
  */
-void JJ1Scene::loadData(File *f) {
+void JJ1Scene::loadData(File *f, signed int* dataOffsets) {
 
 	int loop;
 
@@ -595,7 +594,7 @@ void JJ1Scene::loadData(File *f) {
  *
  * @param f File from which to load the scripts
  */
-void JJ1Scene::loadScripts (File *f) {
+void JJ1Scene::loadScripts (File *f, signed int* scriptStarts, signed int* dataOffsets) {
 
 	int loop;
 	/*int bgIndex = 0;*/
@@ -925,6 +924,7 @@ void JJ1Scene::loadScripts (File *f) {
 							}
 
 							pages[loop].nTexts++;
+							LOG("nTexts = ", pages[loop].nTexts);
 
 						}
 

@@ -245,14 +245,12 @@ class JJ1Scene {
 		int                nFonts;
 		unsigned short int scriptItems;
 		unsigned short int dataItems;
-		signed int*   scriptStarts;
-		signed int*   dataOffsets;
 
 		/// Scripts all information needed to render script pages, text etc
 		JJ1ScenePage*      pages;
 
-		void               loadScripts      (File* f);
-		void               loadData         (File* f);
+		void               loadScripts      (File* f, signed int* scriptStarts, signed int* dataOffsets);
+		void               loadData         (File* f, signed int* dataOffsets);
 		void               loadAni          (File* f, int dataIndex);
 		void               loadCompactedMem (int size, unsigned char* frameData, unsigned char* pixdata);
 		void               loadFFMem        (int size, unsigned char* frameData, unsigned char* pixdata);

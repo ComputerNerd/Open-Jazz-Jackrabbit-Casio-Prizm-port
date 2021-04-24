@@ -339,5 +339,3 @@ void Anim::restorePalette () {
 	return;
 
 }
-
-

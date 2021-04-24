@@ -40,6 +40,7 @@
 
 #include <string.h>
 #ifdef CASIO
+	#include <alloca.h>
 	#include "platforms/casio.h"
 	#include <fxcg/display.h>
 	#include <fxcg/keyboard.h>
@@ -244,10 +245,10 @@ JJ1ScenePage::~JJ1ScenePage() {
 JJ1Scene::JJ1Scene (const char * fileName) {
 
 	File *file;
-    int loop;
+	int loop;
 
-    nFonts = 0;
-    LOG("\nScene", fileName);
+	nFonts = 0;
+	LOG("\nScene", fileName);
 
 	try {
 
@@ -269,7 +270,7 @@ JJ1Scene::JJ1Scene (const char * fileName) {
 	signed long int dataOffset = file->loadInt(); //get offset pointer to first data block
 
 	scriptItems = file->loadShort(); // Get number of script items
-	scriptStarts = new signed int[scriptItems];
+	signed int* scriptStarts = (signed int*)alloca(scriptItems * sizeof(signed int));
 	pages = new JJ1ScenePage[scriptItems];
 
 	LOG("Scene: Script items", scriptItems);
@@ -287,7 +288,7 @@ JJ1Scene::JJ1Scene (const char * fileName) {
 	file->seek(dataOffset, true); // Seek to data offsets
 	dataItems = file->loadShort() + 1; // Get number of data items
 	LOG("Scene: Data items", dataItems);
-	dataOffsets = new signed int[dataItems];
+	signed int* dataOffsets = (signed int*)alloca(dataItems * sizeof(signed int));
 
 	for (loop = 0; loop < dataItems; loop++) {
 
@@ -298,16 +299,14 @@ JJ1Scene::JJ1Scene (const char * fileName) {
 	#ifdef CASIO
 	drawStrL(5,"Start2");
 	#endif
-	loadData(file);
+	loadData(file, dataOffsets);
 	#ifdef CASIO
 	drawStrL(5,"Data");
 	#endif
-	loadScripts(file);
+	loadScripts(file, scriptStarts, dataOffsets);
 	#ifdef CASIO
 	drawStrL(5,"Scripts");
 	#endif
-	delete[] scriptStarts;
-	delete[] dataOffsets;
 	delete file;
 }
 
@@ -656,5 +655,3 @@ int JJ1Scene::play () {
 	return E_NONE;
 
 }
-
-
