@@ -70,7 +70,7 @@ unsigned char nearestIndex(unsigned char ri,unsigned char gi,unsigned char bi,un
  */
 bool fileExists (const char * fileName) {
 #ifdef VERBOSE
-	printf("Check: ");
+	printf("Check: %s\n", fileName);
 #endif
 	try {
 		File file(fileName, false);

@@ -472,6 +472,7 @@ int GameMenu::selectEpisode (GameModeType mode, int episode) {
 
 	} else {
 		freeobj(difficultyScreenid);
+		difficultyScreenid = INVALID_OBJ;
 		if (newGameLevel(mode) == E_QUIT) return E_QUIT;
 
 	}

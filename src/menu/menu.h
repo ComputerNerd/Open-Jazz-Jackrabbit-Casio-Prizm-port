@@ -121,7 +121,7 @@ class MainMenu : public Menu {
 	public:
 		MainMenu  ();
 		~MainMenu ();
-		File *loadLogos();
+		void loadLogos();
 		File *skipLogos();
 		int main ();
 

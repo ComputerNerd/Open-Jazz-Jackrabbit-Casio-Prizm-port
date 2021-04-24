@@ -49,6 +49,9 @@
  * @param name File name
  * @param write Whether or not the file can be written to
  */
+#ifndef CASIO
+static int fileCnt;
+#endif
 File::File (const char* name, bool write) {
 	#ifdef CASIO
 	file=-1;
@@ -61,7 +64,13 @@ File::File (const char* name, bool write) {
 
 	while (path) {
 
-		if (open(path->path, name, write)) return;
+		if (open(path->path, name, write)) {
+#ifndef CASIO
+			++fileCnt;
+			printf("*** fileCnt: %d\n", fileCnt);
+#endif
+			return;
+		}
 		path = path->next;
 
 	}
@@ -82,6 +91,8 @@ File::~File () {
 #else
 	if(file>0)
 		fclose(file);
+	--fileCnt;
+	printf("*** fileCnt: %d\n", fileCnt);
 #endif
 #ifdef VERBOSE
 	log("Closed file", filePath);

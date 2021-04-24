@@ -76,7 +76,7 @@ File * MainMenu::skipLogos(){
 #ifdef CASIO
 extern unsigned char * SaveVramAddr;
 #endif
-File * MainMenu::loadLogos(){
+void MainMenu::loadLogos(){
 	File *file;
 	#ifndef CASIO
 	time_t currentTime;
@@ -145,13 +145,12 @@ File * MainMenu::loadLogos(){
 	setColKey(&highlight,0);
 	//SDL_SetColorKey(logo, SDL_SRCCOLORKEY, 28);
 	setColKey(&logo,28);
-	return file;
+	delete file;
 }
 
 MainMenu::MainMenu(){
-	File * file=loadLogos();
+	loadLogos();
 	//gameMenu = new GameMenu(file);
-	delete file;
 }
 
 
