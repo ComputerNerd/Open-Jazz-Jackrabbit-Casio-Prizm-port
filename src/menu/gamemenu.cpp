@@ -389,7 +389,11 @@ int GameMenu::loadGame () {
  * @return Error code
  */
 int GameMenu::newGameLevel (GameModeType mode) {
+#ifdef CASIO
+	if (message("NOT SUPPORTED") == E_QUIT) return E_QUIT;
+	return E_NONE;
 
+#else
 	char* fileName;
 	int ret;
 
@@ -405,7 +409,7 @@ int GameMenu::newGameLevel (GameModeType mode) {
 
 		if (!fileExists(fileName)) {
 			video.clearScreen(0);
-			if (message("File not found.") == E_QUIT) return E_QUIT;
+			if (message("FILE NOT FOUND") == E_QUIT) return E_QUIT;
 			break;
 		}
 
@@ -418,6 +422,7 @@ int GameMenu::newGameLevel (GameModeType mode) {
 	delete[] fileName;
 
 	return ret;
+#endif
 
 }
 
