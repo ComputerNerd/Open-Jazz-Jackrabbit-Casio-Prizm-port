@@ -91,7 +91,9 @@ Main::Main (void){
 	File* file;
 	//unsigned char* pixels = NULL;
 	int count;
+#ifdef SCALE
 	int scaleFactor = 1;
+#endif
 #ifndef CASIO
 	#ifdef FULLSCREEN_ONLY
 		bool fullscreen = true;
@@ -480,6 +482,7 @@ int main(void){
 			return -1;
 		}
 	#endif
+	initMemHeap();
 	// Load configuration and establish a window
 	controls.SetKeys();
 	//JJ1BonusLevel=136320 JJ1LevelPlayer=760 Sprite=24 sizeof(JJ1Level)=154588 Font=2440 RotatePaletteEffect=24 JJ1Planet=544

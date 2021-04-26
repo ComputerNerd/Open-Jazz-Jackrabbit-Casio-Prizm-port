@@ -159,7 +159,6 @@ void Game::setDifficulty (int diff) {
 }
 #ifdef CASIO
 extern unsigned char * SaveVramAddr;
-#define uintptr_t unsigned
 #else
 extern unsigned char SaveVramAddr[];
 #endif
@@ -168,11 +167,6 @@ extern unsigned char SaveVramAddr[];
  *
  * @return Error code
  */
-unsigned char * alignPtr(uintptr_t p) {
-	if (p & (sizeof(uintptr_t) - 1))
-		p += sizeof(uintptr_t) - (p & (sizeof(uintptr_t) - 1));
-	return (unsigned char *)p;
-}
 int Game::playLevel (char* fileName, bool intro, bool checkpoint) {
 	int ret;
 	if (!strncasecmp(fileName, "MACRO", 5)) {

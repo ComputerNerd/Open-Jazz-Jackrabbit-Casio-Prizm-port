@@ -73,9 +73,6 @@ File * MainMenu::skipLogos(){
 	}
 	return file;
 }
-#ifdef CASIO
-extern unsigned char * SaveVramAddr;
-#endif
 void MainMenu::loadLogos(){
 	File *file;
 	#ifndef CASIO
@@ -220,11 +217,13 @@ int MainMenu::select (int option) {
 
 		case 2: // Instructions
 
+			allowUseSecondaryVramAsHeap = 1;
 			try {
 
 				scene = new JJ1Scene(F_INSTRUCT_0SC);
 
 			} catch (int e) {
+				allowUseSecondaryVramAsHeap = 0;
 
 				if (message("COULD NOT LOAD INSTRUCTIONS") == E_QUIT) return E_QUIT;
 
@@ -241,6 +240,7 @@ int MainMenu::select (int option) {
 			}
 
 			delete scene;
+			allowUseSecondaryVramAsHeap = 0;
 			loadLogos();
 			break;
 
@@ -256,11 +256,13 @@ int MainMenu::select (int option) {
 
 		case 4: // Order info
 
+			allowUseSecondaryVramAsHeap = 1;
 			try {
 
 				scene = new JJ1Scene(F_ORDER_0SC);
 
 			} catch (int e) {
+				allowUseSecondaryVramAsHeap = 0;
 
 				if (message("COULD NOT LOAD ORDER INFO") == E_QUIT) return E_QUIT;
 
@@ -277,6 +279,7 @@ int MainMenu::select (int option) {
 			}
 
 			delete scene;
+			allowUseSecondaryVramAsHeap = 0;
 			loadLogos();
 			break;
 
