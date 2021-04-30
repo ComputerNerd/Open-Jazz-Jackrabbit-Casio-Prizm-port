@@ -472,7 +472,7 @@ int main(void){
 		memset(vramAddress,0,384*216*2);
 		PrintXY(1,1,"Loading..."-2,0x20,TEXT_COLOR_WHITE);
 		Bdisp_PutDisp_DD();
-		SaveVramAddr=(unsigned char*)getSecondaryVramAddress();
+		SaveVramAddr=(unsigned char*)GetSecondaryVRAMAddress();
 		if(HackRET(SaveVramAddr)&3)
 			SaveVramAddr+=4-(HackRET(SaveVramAddr)&3);//Align address
 	#else

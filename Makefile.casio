@@ -4,7 +4,7 @@ OBJCOPY=sh3eb-elf-objcopy
 MKG3A=mkg3a
 RM=rm
 CFLAGS=-m4a-nofpu -mb -fgcse-sm -fgcse-las -fgcse-after-reload -Isrc -O3 -std=c++03 -fmerge-all-constants -mhitachi -flto -fuse-linker-plugin -Wall -Wextra -I../../include -lgcc -L../../lib -DCASIO -DFULLSCREEN_ONLY -fsingle-precision-constant 
-LDFLAGS=$(CFLAGS) -nostartfiles -T../../toolchain/prizm.x -Wl,-static -Wl,-gc-sections -lgcc -lsupc++
+LDFLAGS=$(CFLAGS) -nostartfiles -T../../toolchain/prizm.x -Wl,-static -Wl,-gc-sections -lfxcg -lc -lsupc++
 OBJECTS=src/platforms/exception.o \
 	src/platforms/casio.o src/game/game.o src/game/gamemode.o \
 	src/game/localgame.o \
